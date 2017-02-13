@@ -156,7 +156,7 @@ DXObj<ID3D11Device> CreateDevice(DXObj<ID3D11DeviceContext>& deviceContext)
 	DXObj<ID3D11Device> device(deviceCPtr);
 	deviceContext.reset(deviceContextCPtr);
 	if (FAILED(err) || !device || !deviceContext)
-		throw runtime_error("Unable to create device");
+		throw runtime_error("Unable to create device. " + HResultToString(err));
 	return device;
 }
 
