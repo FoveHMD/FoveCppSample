@@ -45,7 +45,7 @@ Fove::SFVR_Matrix44 QuatToMatrix(const Fove::SFVR_Quaternion q)
 	return ret;
 }
 
-Fove::SFVR_Matrix44 Transpose(const const Fove::SFVR_Matrix44& m)
+Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m)
 {
 	Fove::SFVR_Matrix44 ret;
 	ret.mat[0][0] = m.mat[0][0]; ret.mat[0][1] = m.mat[1][0]; ret.mat[0][2] = m.mat[2][0]; ret.mat[0][3] = m.mat[3][0];
