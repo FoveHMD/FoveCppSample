@@ -22,7 +22,8 @@ Fove::SFVR_Vec2i GetSingleEyeResolutionWithTimeout(
 	std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
 	Fove::SFVR_Vec2i defaultValue = { 1280, 1440 });
 
-// Converts a UTF8/ASCII string to UTF16
+// Conversions between UTF-8 and UTF-16
+std::string ToUtf8(const std::wstring& utf16);
 std::wstring ToUtf16(const std::string& str);
 
 // Math utilities
@@ -31,3 +32,8 @@ Fove::SFVR_Matrix44 QuatToMatrix(Fove::SFVR_Quaternion q);
 Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m);
 Fove::SFVR_Matrix44 TranslationMatrix(float x, float y, float z);
 Fove::SFVR_Matrix44 operator * (const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Matrix44& m2);
+
+// Error utilities
+using ErrorType = unsigned long;                      // Equivalent to DWORD on windows
+std::string GetErrorString(ErrorType error) noexcept; // Turns an OS-specific error into a string with detailed info if possible
+std::string GetLastErrorAsString() noexcept;          // Passes the OS-specific last-error function (GetLastError() on windows) through GetErrorString

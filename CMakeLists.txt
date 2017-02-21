@@ -22,7 +22,7 @@ else()
 endif()
 
 # Create DirectX 11 Example
-add_executable(FoveDirectX11Example WIN32 DirectX11Example.cpp Util.h Util.cpp DXUtil.h)
+add_executable(FoveDirectX11Example WIN32 DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
 
 if (NOT "${CppExampleBuildInTree}")
 	# Copy DLL to binary folder so it can be found when the compiled program runs

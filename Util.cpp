@@ -1,6 +1,12 @@
 #include "Util.h"
 #include <thread>
 #include <codecvt>
+#include <iterator>
+#include <algorithm>
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 using namespace std;
 
@@ -21,6 +27,11 @@ Fove::SFVR_Vec2i GetSingleEyeResolutionWithTimeout(const Fove::IFVRCompositor& c
 	} while (chrono::high_resolution_clock::now() - start < timeout);
 
 	return defaultValue;
+}
+
+string ToUtf8(const wstring& utf16)
+{
+	return wstring_convert<codecvt_utf8_utf16<wchar_t>, wchar_t>().to_bytes(utf16);
 }
 
 wstring ToUtf16(const string& str)
@@ -79,4 +90,42 @@ Fove::SFVR_Matrix44 operator * (const Fove::SFVR_Matrix44& m1, const Fove::SFVR_
 		}
 	}
 	return ret;
+}
+
+string GetErrorString(const ErrorType error) noexcept try
+{
+	string ret = to_string(error);
+
+#ifdef _WIN32
+	// Call FormatMessage to get error string from winapi
+	LPWSTR _buffer = nullptr;
+	const DWORD size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&_buffer, 0, nullptr);
+	const unique_ptr<wchar_t, decltype(&LocalFree)> buffer(_buffer, &LocalFree);
+	if (size > 0)
+	{
+		// Add message to return buffer
+		const wstring wstr(buffer.get(), size);
+		ret += ' ';
+		ret += ToUtf8(wstr);
+
+		// Windows seems to add newlines, remove them
+		ret.erase(remove_if(ret.begin(), ret.end(), [](const char c) { return c == '\r' || c == '\n'; }), ret.end());
+	}
+#endif
+
+	return ret;
+}
+catch (const exception& e)
+{
+	// If we fail in any way generating the error string, return a generic error and move on
+	return "ERROR_FAILURE";
+}
+
+string GetLastErrorAsString() noexcept
+{
+#ifdef _WIN32
+	return GetErrorString(GetLastError());
+#else
+	return 0; // Not implemented for other platforms yet
+#endif
 }
