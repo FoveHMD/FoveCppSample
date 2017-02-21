@@ -115,7 +115,7 @@ string GetErrorString(const ErrorType error) noexcept try
 
 	return ret;
 }
-catch (const exception& e)
+catch (const exception&)
 {
 	// If we fail in any way generating the error string, return a generic error and move on
 	return "ERROR_FAILURE";
