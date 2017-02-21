@@ -149,14 +149,14 @@ HWND InitWindow(HINSTANCE hInstance, int nCmdShow)
 
 DXObj<ID3D11Device> CreateDevice(DXObj<ID3D11DeviceContext>& deviceContext)
 {
-	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_1;
+	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 	ID3D11Device* deviceCPtr = nullptr;
 	ID3D11DeviceContext* deviceContextCPtr = nullptr;
 	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0/*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &deviceCPtr, nullptr, &deviceContextCPtr);
 	DXObj<ID3D11Device> device(deviceCPtr);
 	deviceContext.reset(deviceContextCPtr);
 	if (FAILED(err) || !device || !deviceContext)
-		throw runtime_error("Unable to create device");
+		throw runtime_error("Unable to create device. " + HResultToString(err));
 	return device;
 }
 
