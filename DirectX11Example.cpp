@@ -330,6 +330,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	DXObj<ID3D11VertexShader> vertexShader{ vertexShaderCPtr };
 	if (FAILED(err) || !vertexShader)
 		throw runtime_error("Unable to create vertex shader: " + HResultToString(err));
+	deviceContext->VSSetShader(vertexShader.get(), nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -349,6 +350,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	DXObj<ID3D11PixelShader> pixelShader{ pixelShaderCPtr };
 	if (FAILED(err) || !pixelShader)
 		throw runtime_error("Unable to create pixel shader: " + HResultToString(err));
+	deviceContext->PSSetShader(pixelShader.get(), nullptr, 0);
 
 	// Create vertex buffer
 	static_assert(sizeof(verts) % 3 == 0, "Verts array size should be a multiple of 3 (triangles)");
@@ -366,6 +368,10 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	DXObj<ID3D11Buffer> vertexBuffer{ vertexBufferCPtr };
 	if (FAILED(err) || !vertexBuffer)
 		throw runtime_error("Unable to create vertex buffer: " + HResultToString(err));
+	UINT stride = sizeof(float) * floatsPerVert;
+	UINT offset = 0;
+	deviceContext->IASetVertexBuffers(0, 1, &vertexBufferCPtr, &stride, &offset);
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Setup constants buffer
 	D3D11_BUFFER_DESC constantBufferDesc;
@@ -379,6 +385,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	DXObj<ID3D11Buffer> constantBuffer{ constantBufferCPtr };
 	if (FAILED(err) || !constantBuffer)
 		throw runtime_error("Unable to create constant buffer: " + HResultToString(err));
+	deviceContext->VSSetConstantBuffers(0, 1, &constantBufferCPtr);
 
 	// Main loop
 	while (true)
@@ -397,15 +404,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 			const float color[] = { 0.3f, 0.3f, 0.8f, 0.3f };
 			deviceContext->ClearRenderTargetView(renderTargetView.get(), color);
 			deviceContext->ClearDepthStencilView(depthStencilView.get(), D3D11_CLEAR_DEPTH, 1, 0);
-
-			// Setup state
-			UINT stride = sizeof(float) * floatsPerVert;
-			UINT offset = 0;
-			deviceContext->IASetVertexBuffers(0, 1, &vertexBufferCPtr, &stride, &offset);
-			deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			deviceContext->VSSetShader(vertexShader.get(), nullptr, 0);
-			deviceContext->PSSetShader(pixelShader.get(), nullptr, 0);
-			deviceContext->VSSetConstantBuffers(0, 1, &constantBufferCPtr);
 
 			// Compute matrices
 			Fove::SFVR_Matrix44 displace = TranslationMatrix(0, -1.6f, 0); // Move ground downwards to compensate for player height
