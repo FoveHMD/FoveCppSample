@@ -7,6 +7,7 @@
 #include <thread>
 #include <stdexcept>
 #include <windows.h>
+#include <atlbase.h>
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 #include "IFVRHeadset.h"
@@ -58,14 +59,11 @@ const string fragSource =
 
 // Helper function to compile a shader
 // Throws if theres an error, never returns null
-DXObj<ID3DBlob> CompileShader(const string& shaderSource, const bool isVert)
+CComPtr<ID3DBlob> CompileShader(const string& shaderSource, const bool isVert)
 {
 	// Have DirectX compile the shader
-	ID3DBlob* shaderBlobCPtr = nullptr;
-	ID3DBlob* errorBlobCPtr = nullptr;
-	HRESULT err = D3DCompile(shaderSource.data(), shaderSource.size(), nullptr, nullptr, nullptr, isVert ? "VS" : "PS", isVert ? "vs_4_0" : "ps_4_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &shaderBlobCPtr, &errorBlobCPtr);
-	DXObj<ID3DBlob> shaderBlob(shaderBlobCPtr);
-	DXObj<ID3DBlob> errorBlob(errorBlobCPtr);
+	CComPtr<ID3DBlob> shaderBlob, errorBlob;
+	HRESULT err = D3DCompile(shaderSource.data(), shaderSource.size(), nullptr, nullptr, nullptr, isVert ? "VS" : "PS", isVert ? "vs_4_0" : "ps_4_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &shaderBlob, &errorBlob);
 
 	// Check for error
 	if (FAILED(err) || !shaderBlob)
@@ -147,42 +145,35 @@ HWND InitWindow(HINSTANCE hInstance, int nCmdShow)
 	return window;
 }
 
-DXObj<ID3D11Device> CreateDevice(DXObj<ID3D11DeviceContext>& deviceContext)
+CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext)
 {
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
-	ID3D11Device* deviceCPtr = nullptr;
-	ID3D11DeviceContext* deviceContextCPtr = nullptr;
-	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0/*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &deviceCPtr, nullptr, &deviceContextCPtr);
-	DXObj<ID3D11Device> device(deviceCPtr);
-	deviceContext.reset(deviceContextCPtr);
+	CComPtr<ID3D11Device> device;
+	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0/*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &device, nullptr, &deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
 		throw runtime_error("Unable to create device: " + HResultToString(err));
 	return device;
 }
 
-DXObj<IDXGISwapChain> CreateSwapChain(const HWND window, ID3D11Device& device, ID3D11DeviceContext& deviceContext, const Fove::SFVR_Vec2i singleEyeResolution)
+CComPtr<IDXGISwapChain> CreateSwapChain(const HWND window, ID3D11Device& device, ID3D11DeviceContext& deviceContext, const Fove::SFVR_Vec2i singleEyeResolution)
 {
 	// Obtain DXGI factory from device
-	DXObj<IDXGIFactory2> factory = nullptr;
+	CComPtr<IDXGIFactory2> factory;
 	{
 		// Get IDXGIDevice from ID3D11Device
-		IDXGIDevice* dxgiDeviceCPtr = nullptr;
-		HRESULT err = device.QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDeviceCPtr));
-		const DXObj<IDXGIDevice> dxgiDevice{ dxgiDeviceCPtr };
+		CComPtr<IDXGIDevice> dxgiDevice;
+		HRESULT err = device.QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
 		if (FAILED(err) || !dxgiDevice)
 			throw runtime_error("Unable to get IDXGIDevice from ID3D11Device: " + HResultToString(err));
 
 		// Get IDXGIAdapter from IDXGIDevice
-		IDXGIAdapter* adapterCPtr = nullptr;
-		err = dxgiDevice->GetAdapter(&adapterCPtr);
-		const DXObj<IDXGIAdapter> adapter{ adapterCPtr };
+		CComPtr<IDXGIAdapter> adapter;
+		err = dxgiDevice->GetAdapter(&adapter);
 		if (FAILED(err) || !adapter)
 			throw runtime_error("Unable to get IDXGIAdapter from IDXGIDevice: " + HResultToString(err));
 
 		// Get IDXGIFactory2 from IDXGIAdapter
-		IDXGIFactory2* factoryCPtr = nullptr;
-		err = adapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&factoryCPtr));
-		factory.reset(factoryCPtr);
+		err = adapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&factory));
 		if (FAILED(err) || !factory)
 			throw runtime_error("Unable to get IDXGIFactory2: " + HResultToString(err));
 	}
@@ -199,16 +190,14 @@ DXObj<IDXGISwapChain> CreateSwapChain(const HWND window, ID3D11Device& device, I
 	swapChainDesc.BufferCount = 1;
 
 	// Create IDXGISwapChain1 with factory
-	IDXGISwapChain1* swapChain1CPtr = nullptr;
-	HRESULT err = factory->CreateSwapChainForHwnd(&device, window, &swapChainDesc, nullptr, nullptr, &swapChain1CPtr);
-	DXObj<IDXGISwapChain1> swapChain1{ swapChain1CPtr };
+	CComPtr<IDXGISwapChain1> swapChain1;
+	HRESULT err = factory->CreateSwapChainForHwnd(&device, window, &swapChainDesc, nullptr, nullptr, &swapChain1);
 	if (FAILED(err) || !swapChain1)
 		throw runtime_error("Unable to create swap chain: " + HResultToString(err));
 
 	// Get IDXGISwapChain from IDXGISwapChain1
-	IDXGISwapChain1* swapChainCPtr = nullptr;
-	err = swapChain1CPtr->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChainCPtr));
-	DXObj<IDXGISwapChain> swapChain{ swapChainCPtr };
+	CComPtr<IDXGISwapChain> swapChain;
+	err = swapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChain));
 	if (FAILED(err) || !swapChain)
 		throw runtime_error("Unable to get IDXGISwapChain from IDXGISwapChain1: " + HResultToString(err));
 
@@ -247,21 +236,19 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 
 	// Setup
 	const HWND window = InitWindow(hInstance, nCmdShow);
-	DXObj<ID3D11DeviceContext> deviceContext;
-	const DXObj<ID3D11Device> device = CreateDevice(deviceContext);
-	const DXObj<IDXGISwapChain> swapChain = CreateSwapChain(window, *device, *deviceContext, singleEyeResolution);
+	CComPtr<ID3D11DeviceContext> deviceContext;
+	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext);
+	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(window, *device, *deviceContext, singleEyeResolution);
 
 	// Get back buffer
-	ID3D11Texture2D* backBufferCPtr = nullptr;
-	HRESULT err = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBufferCPtr));
-	DXObj<ID3D11Texture2D> backBuffer{ backBufferCPtr };
+	CComPtr<ID3D11Texture2D> backBuffer;
+	HRESULT err = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
 	if (FAILED(err) || !backBuffer)
 		throw runtime_error("Unable to create render target view: " + HResultToString(err));
 
 	// Create a render target view
-	ID3D11RenderTargetView* renderTargetViewCPtr = nullptr;
-	err = device->CreateRenderTargetView(backBuffer.get(), nullptr, &renderTargetViewCPtr);
-	DXObj<ID3D11RenderTargetView> renderTargetView{ renderTargetViewCPtr };
+	CComPtr<ID3D11RenderTargetView> renderTargetView;
+	err = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
 	if (FAILED(err) || !renderTargetView)
 		throw runtime_error("Unable to create render target view: " + HResultToString(err));
 
@@ -279,9 +266,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	descDepth.CPUAccessFlags = 0;
 	descDepth.MiscFlags = 0;
-	ID3D11Texture2D* depthBufferCPtr = nullptr;
-	err = device->CreateTexture2D(&descDepth, nullptr, &depthBufferCPtr);
-	DXObj<ID3D11Texture2D> depthBuffer{ depthBufferCPtr };
+	CComPtr<ID3D11Texture2D> depthBuffer;
+	err = device->CreateTexture2D(&descDepth, nullptr, &depthBuffer);
 	if (FAILED(err) || !depthBuffer)
 		throw runtime_error("Unable to create depth buffer: " + HResultToString(err));
 
@@ -291,9 +277,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	dsDesc.DepthEnable = true;
 	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
-	ID3D11DepthStencilState* depthStencilStateCPtr = nullptr;
-	err = device->CreateDepthStencilState(&dsDesc, &depthStencilStateCPtr);
-	DXObj<ID3D11DepthStencilState> depthStencilState{ depthStencilStateCPtr };
+	CComPtr<ID3D11DepthStencilState> depthStencilState;
+	err = device->CreateDepthStencilState(&dsDesc, &depthStencilState);
 	if (FAILED(err) || !depthStencilState)
 		throw runtime_error("Unable to create depth stencil state: " + HResultToString(err));
 
@@ -302,15 +287,14 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
 	depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	depthStencilViewDesc.Texture2D.MipSlice = 0;
-	ID3D11DepthStencilView* depthStencilViewCPtr = nullptr;
-	err = device->CreateDepthStencilView(depthBuffer.get(), &depthStencilViewDesc, &depthStencilViewCPtr);
-	DXObj<ID3D11DepthStencilView> depthStencilView{ depthStencilViewCPtr };
+	CComPtr<ID3D11DepthStencilView> depthStencilView;
+	err = device->CreateDepthStencilView(depthBuffer, &depthStencilViewDesc, &depthStencilView);
 	if (FAILED(err) || !depthStencilView)
 		throw runtime_error("Unable to create depth stencil view " + HResultToString(err));
 
 	// Bind render targets to output-merger stage
-	deviceContext->OMSetRenderTargets(1, &renderTargetViewCPtr, depthStencilView.get());
-	deviceContext->OMSetDepthStencilState(depthStencilState.get(), 1);
+	deviceContext->OMSetRenderTargets(1, BindInputArray(renderTargetView), depthStencilView);
+	deviceContext->OMSetDepthStencilState(depthStencilState, 1);
 
 	// Setup the right and left viewport
 	D3D11_VIEWPORT leftViewport;
@@ -324,33 +308,30 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	rightViewport.TopLeftX = (FLOAT)singleEyeResolution.x;
 
 	// Create the vertex shader
-	DXObj<ID3DBlob> vertShaderBlob = CompileShader(vertSource, true);
-	ID3D11VertexShader* vertexShaderCPtr = nullptr;
-	err = device->CreateVertexShader(vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), nullptr, &vertexShaderCPtr);
-	DXObj<ID3D11VertexShader> vertexShader{ vertexShaderCPtr };
+	const CComPtr<ID3DBlob> vertShaderBlob = CompileShader(vertSource, true);
+	CComPtr<ID3D11VertexShader> vertexShader;
+	err = device->CreateVertexShader(vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), nullptr, &vertexShader);
 	if (FAILED(err) || !vertexShader)
 		throw runtime_error("Unable to create vertex shader: " + HResultToString(err));
-	deviceContext->VSSetShader(vertexShader.get(), nullptr, 0);
+	deviceContext->VSSetShader(vertexShader, nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
-	ID3D11InputLayout* vertexLayoutCPtr = nullptr;
-	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), &vertexLayoutCPtr);
-	DXObj<ID3D11InputLayout> vertexLayout{ vertexLayoutCPtr };
+	CComPtr<ID3D11InputLayout> vertexLayout;
+	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), &vertexLayout);
 	if (FAILED(err) || !vertexLayout)
 		throw runtime_error("Unable to create vertex layout: " + HResultToString(err));
-	deviceContext->IASetInputLayout(vertexLayout.get());
+	deviceContext->IASetInputLayout(vertexLayout);
 
 	// Create and set the pixel shader
-	DXObj<ID3DBlob> pixelShaderBlob = CompileShader(fragSource, false);
-	ID3D11PixelShader* pixelShaderCPtr = nullptr;
-	err = device->CreatePixelShader(pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize(), nullptr, &pixelShaderCPtr);
-	DXObj<ID3D11PixelShader> pixelShader{ pixelShaderCPtr };
+	const CComPtr<ID3DBlob> pixelShaderBlob = CompileShader(fragSource, false);
+	CComPtr<ID3D11PixelShader> pixelShader;
+	err = device->CreatePixelShader(pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize(), nullptr, &pixelShader);
 	if (FAILED(err) || !pixelShader)
 		throw runtime_error("Unable to create pixel shader: " + HResultToString(err));
-	deviceContext->PSSetShader(pixelShader.get(), nullptr, 0);
+	deviceContext->PSSetShader(pixelShader, nullptr, 0);
 
 	// Create vertex buffer
 	static_assert(sizeof(verts) % 3 == 0, "Verts array size should be a multiple of 3 (triangles)");
@@ -363,14 +344,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	D3D11_SUBRESOURCE_DATA InitData;
 	ZeroMemory(&InitData, sizeof(InitData));
 	InitData.pSysMem = verts;
-	ID3D11Buffer* vertexBufferCPtr = nullptr;
-	err = device->CreateBuffer(&vertexBufferDesc, &InitData, &vertexBufferCPtr);
-	DXObj<ID3D11Buffer> vertexBuffer{ vertexBufferCPtr };
+	CComPtr<ID3D11Buffer> vertexBuffer;
+	err = device->CreateBuffer(&vertexBufferDesc, &InitData, &vertexBuffer);
 	if (FAILED(err) || !vertexBuffer)
 		throw runtime_error("Unable to create vertex buffer: " + HResultToString(err));
-	UINT stride = sizeof(float) * floatsPerVert;
-	UINT offset = 0;
-	deviceContext->IASetVertexBuffers(0, 1, &vertexBufferCPtr, &stride, &offset);
+	deviceContext->IASetVertexBuffers(0, 1, BindInputArray(vertexBuffer), BindInputArray<UINT>(sizeof(float) * floatsPerVert), BindInputArray<UINT>(0));
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Setup constants buffer
@@ -380,12 +358,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	constantBufferDesc.ByteWidth = sizeof(float) * 16; // One 4x4 matrix
 	constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	constantBufferDesc.CPUAccessFlags = 0;
-	ID3D11Buffer* constantBufferCPtr = nullptr;
-	err = device->CreateBuffer(&constantBufferDesc, nullptr, &constantBufferCPtr);
-	DXObj<ID3D11Buffer> constantBuffer{ constantBufferCPtr };
+	CComPtr<ID3D11Buffer> constantBuffer;
+	err = device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
 	if (FAILED(err) || !constantBuffer)
 		throw runtime_error("Unable to create constant buffer: " + HResultToString(err));
-	deviceContext->VSSetConstantBuffers(0, 1, &constantBufferCPtr);
+	deviceContext->VSSetConstantBuffers(0, 1, BindInputArray(constantBuffer));
 
 	// Main loop
 	while (true)
@@ -402,8 +379,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 		{
 			// Clear the back buffer 
 			const float color[] = { 0.3f, 0.3f, 0.8f, 0.3f };
-			deviceContext->ClearRenderTargetView(renderTargetView.get(), color);
-			deviceContext->ClearDepthStencilView(depthStencilView.get(), D3D11_CLEAR_DEPTH, 1, 0);
+			deviceContext->ClearRenderTargetView(renderTargetView, color);
+			deviceContext->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 			// Compute matrices
 			Fove::SFVR_Matrix44 displace = TranslationMatrix(0, -1.6f, 0); // Move ground downwards to compensate for player height
@@ -428,7 +405,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 
 		// Present rendered results to compositor
 		{
-			Fove::SFVR_CompositorTexture tex(backBuffer.get());
+			Fove::SFVR_CompositorTexture tex(backBuffer);
 			Fove::SFVR_TextureBounds bounds;
 			bounds.top = 0;
 			bounds.bottom = 1;
