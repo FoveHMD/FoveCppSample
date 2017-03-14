@@ -1,0 +1,275 @@
+This distribution allows application developers to create software and games that use the Fove HMD.
+It is a work in progress and while we will do our best to not introduce breaking changes, sometimes this is inevitable in the software lifetime development cycle.
+Documentation is available on our forum at http://forum.getfove.com/ and is also a work in progress.
+
+If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
+
+v0.11.4
+
+- Added more version info about runtime/client/firmware to the Config Tool
+- Fixed some incorrect statuses in Health Status tool
+- Fixed incorrect LED brightness on black headsets
+- Fixed multi-user support of FOVE program data
+- Fixed an issue with Windows timer interval
+- Changed client behaviour to only launch the service upon creation
+- Improved Eye-Tracking performance
+- Improved logging
+- Miscellaneous bug fixes
+
+v0.11.3
+
+- Fixed Eye-Tracking exceptions being thrown
+
+v0.11.2
+
+- Multiple video cards no longer crash clients or calibration functions **(See note below)
+- Fixed AMD GPUs' timing bug
+- Fixed Tray App high-CPU consumption bug
+- Tray App now displays that it is tracking both eyes by default
+- Tray App now automatically opens a newly created profile
+- Added close button to Status Bar
+- Improved Eye-Tracking image processing accuracy
+- Fixed Tare Orientation in Config Tool
+
+** However, games may not be able to use your current video card. If this is the case, check the FOVE log for errors and switch which video card your HMD is connected to.
+
+v0.11.1
+
+- Fixed Eye Positioning bug
+- Fixed Eye Feedback state management bug
+- Fixed bug in Eye Calibration on Request
+- Fixed multi-threading bug when acquiring Headset
+
+v0.11.0
+
+- Added Eye-Tracking Calibration Profiles
+- Eye-Tracking Calibration starts with a One-Point Calibration for guaranteed (Default) Calibration
+- FOVE Status Bar (shows hardware status and connection)
+- Improved Eye Positioning Feedback
+- Increased Eye Calibration Robustness (evident errors - such as looking away - are prevented)
+- FOVE Mirror Client
+- Eye Calibration is only triggered if a Client specifically requests Eye Tracking
+- Eye Calibration can be started at a specific time by the Client (for example, after the Splash Screen)
+- Tray App improvements
+- Full translation of UI to Japanese and Korean
+- Bug fixes
+
+v0.10.0
+
+- Added IFVRHeadset::GetIOD() to return the distance between eyes
+- Added IFVRCompositor::isReady() to determine if there’s a connection to the compositor
+- Added IFVRCompositor::GetSingleEyeResolution() to get the ideal render resolution
+- JP translation for Tray App and Config Tool
+- Improved Eye Closed state for low latency blink and wink detection
+- Improved Firmware Updater waits for device reboot
+- Improved Position Tracking
+- Fixed IFVRHeadset::TarePositionSensor()
+- Fixed IFVRHeadset::TareOrientationSensors()
+- Clients using FoveClient.dll launch FoveRuntime if it is not running
+- Fixed Tray App balloon tips
+- Latest NVIDIA driver support
+- Bug fixes
+
+v0.9.3
+
+- Usability Improvements
+- Removed calibration window
+- Added final calibration check
+- Simplified installation and first run procedure
+- FoveRuntime service is now Automatic
+- Included USB driver in installer
+- JP and KR localization for installer
+- Improved Position Tracking
+- Logging improvements
+
+v0.9.2
+
+- Usability Improvements
+- Interface change for FOVE0
+- FOVE VR is a startup program by default
+- Fixed install directory structure
+- Installs are upgradeable
+- Improved Eye Tracking
+- Automatically enable Direct Mode
+- Alpha blending interface change
+- Logging improvements
+
+v0.9.1
+
+- New firmware support (v50)
+- Software releases now include latest firmware
+- Companion usability improvements
+
+v0.9.0
+
+- Backwards compatibility break
+- New firmware support (v40)
+- GPU Check in Installer
+- 3D calibration for both eyes
+- Version checks for SDK and firmware
+- Automatic calibration via Companion
+- Companion tied to Compositor startup
+- Configuration options via FoveVR.config
+
+v0.8.4
+
+- Calibration Companion application
+- Support for ES3 hardware
+- InstallShield installer for FOVE software
+- Compositor rework
+
+v0.8.3
+
+- Dual Eye Tracking
+- Eye drift correction improvements
+- Added SDK version to Config Tool
+- Disable Compositor console window
+- Firmware Update DFU security checks
+- FOVE Tray application
+- Distortion matrix improvements
+- Added Eye Tracking selection (Both/Left/Right) config option
+
+v0.8.2
+
+- Firmware Update tool
+- Compositor improvements
+- Eye drift correction improvements
+
+v0.8.1
+
+- Configuration Tool improvements
+- Start/Stop buttons for Service and Compositor, Show Log button
+- Disable Auto Drift after first Manual Drift call
+- Extended Mode compositor fix
+- Various bug fixes
+
+v0.8.0
+
+- AMD Direct Mode
+- Redesigned Configuration Tool
+- Logging System
+- Eye tracking improvements
+- New firmware support (v32)
+- Bug fixes
+
+v0.7.2
+
+- Valid Code Certificates
+- Dropped 32-bit support
+- Better thread handling in compositor
+- Stability improvements
+- File cleanup
+
+v0.7.1
+
+- Barrel distortion compensation in eye tracking
+- Client DLL fixes
+
+v0.7.0
+
+- Preliminary Automatic Drift Correction
+- Position Tracking rotation range extended
+- Compositor background fix
+- Improved blink and pupil detection
+- File cleanup
+- Compositor messages cleanup, more detailed errors
+
+v0.6.5
+
+- Blink eye tracking upgrade
+- Wait for Render Pose
+- Position tracking upgrades
+- Backwards compatibility for old client interfaces
+- Compositor stability improvement
+- Compositor connection protocol adjustment
+- Frame limiting via shared memory
+- New Function: EFVR_CompositorError FVR_Compositor_SubmitAutoPose()
+- New Function: SFVR_Pose FVR_Compositor_WaitForRenderPose()
+
+v0.6.4
+
+- Runtime Service installation update
+
+v0.6.3
+
+- Eye Closed detection
+- Compositor Auto-launch
+- Eye tracking enhancements
+- Position tracking display in Config Tool
+- Bug fixes
+- File cleanup
+
+v0.6.2
+
+- Backwards compatibility for old interfaces
+- Memory optimizations
+- Support for new pose structure
+- Deprecated functions that rely on SFVR_HeadOrientation structure
+- Deprecated: DisableEyeTracking()
+- Deprecated: EnableEyeTracking()
+- Deprecated: GetVersion()
+- Deprecated: Submit(..., SFVR_HeadOrientation) (use Submit(..., SFVR_Pose))
+- Removed compositor heartbeat message
+- Bug fixes
+
+v0.6.1
+
+- Dropped support for VS2013
+- Improved position tracking robustness and performance
+- Support for ES2 hardware
+- New firmware support (v31)
+- In-firmware gyro calibration (no longer uses .calib files)
+- Support for multiple motion tracking objects
+- Now using VR-friendly 'Pose' data structure (instead of position + orientation)
+- New Function: GetPoseByIndex()
+- New Function: GetHMDPose()
+- Deprecated: GetPosition() (use GetHMDPose())
+- Deprecated: GetOrientation() (use GetHMDPose())
+- No longer using hidapi.dll
+- No longer using GazeTracking.dll
+- Distortion mesh improvements
+- Bug fixes
+
+v0.6.0
+
+- New Bitmaps to reduce crashing
+- Bugfixes
+- Efficiency improvements
+- NVIDIA Direct Mode fixes
+- Position tracking improvements
+- New firmware support (v25)
+- Asynchronous Time Warp
+- Added CheckRuntimeVersion() function (returns EFVR_ErrorCode::Connect_WrongRuntimeVersion if incorrect)
+
+v0.5.1
+
+- Barrel distortion changes
+- Position tracking enabling
+- Gyro calibration fixes
+- New firmware support (v23)
+
+v0.5.0
+
+- NVIDIA Direct Mode
+
+v0.4.3
+
+- Increased runtime stability when plugging/unplugging headset
+- New firmware support (v22)
+- Improved render state management for Compositor
+- Workaround for Windows display handling issues on some systems
+- Orientation improvements
+
+v0.4.2
+
+- Stability fixes
+- x86 and x64 builds
+- vs12 and vs14 builds (using different versions of the VC++ runtime)
+- Fixed a bug to do with detection of cameras that occurred on some headsets
+- Fixed a bug with gyro orientation
+
+v0.4.1
+
+- Support for ES1 hardware
+- Unity Plugin support
+- Removed prototype hardware dependencies
