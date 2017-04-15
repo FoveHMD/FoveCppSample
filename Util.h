@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <string>
+#include <stdexcept>
 #include "FoveTypes.h"
 #include "IFVRCompositor.h"
 
@@ -10,8 +11,8 @@
 template<typename Type> Type&& CheckError(Type&& object, const char* const data)
 {
 	if (object.error != Fove::EFVR_ErrorCode::None)
-		throw runtime_error("Unable to get "s + std::string(data) + ": " + to_string(static_cast<int>(object.error)));
-	return move(object);
+		throw std::runtime_error("Unable to get " + std::string(data) + ": " + std::to_string(static_cast<int>(object.error)));
+	return std::move(object);
 }
 
 // Queries the ideal render resolution for a single eye from the compositor
