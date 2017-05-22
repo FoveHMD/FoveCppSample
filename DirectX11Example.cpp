@@ -393,14 +393,16 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 			headset->GetIOD(halfIOD); // Error is ignored, it will use the default value if there's an error
 
 			// Render left eye
-			Fove::SFVR_Matrix44 leftEyeProj = Transpose(headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Left, 0.01f, 1000.0f));
+			Fove::SFVR_Matrix44 leftEyeProj;
+			CheckError(headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Left, 0.01f, 1000.0f, &leftEyeProj), "left eye projection matrix");
 			deviceContext->RSSetViewports(1, &leftViewport);
-			RenderScene(*deviceContext, *constantBuffer, leftEyeProj, TranslationMatrix(halfIOD, 0, 0) * modelview);
+			RenderScene(*deviceContext, *constantBuffer, Transpose(leftEyeProj), TranslationMatrix(halfIOD, 0, 0) * modelview);
 
 			// Render right eye
-			Fove::SFVR_Matrix44 rightEyeProj = Transpose(headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Right, 0.01f, 1000.0f));
+			Fove::SFVR_Matrix44 rightEyeProj;
+			CheckError(headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Right, 0.01f, 1000.0f, &rightEyeProj), "right eye projection matrix");
 			deviceContext->RSSetViewports(1, &rightViewport);
-			RenderScene(*deviceContext, *constantBuffer, rightEyeProj, TranslationMatrix(-halfIOD, 0, 0) * modelview);
+			RenderScene(*deviceContext, *constantBuffer, Transpose(rightEyeProj), TranslationMatrix(-halfIOD, 0, 0) * modelview);
 		}
 
 		// Present rendered results to compositor

@@ -4,10 +4,10 @@
 #define _FOVETYPES_H
 
 #ifdef __GNUC__
-#define FVR_DEPRECATED(func) func __attribute__ ((deprecated))
+#define FVR_DEPRECATED(func, rem) func __attribute__ ((deprecated(rem)))
 #define FVR_EXPORT __attribute__((visibility("default")))
 #elif defined(_MSC_VER)
-#define FVR_DEPRECATED(func) __declspec(deprecated) func
+#define FVR_DEPRECATED(func, rem) __declspec(deprecated(rem)) func
 #define FVR_EXPORT __declspec(dllexport)
 #else
 #pragma message("WARNING: You need to implement DEPRECATED for this compiler")
@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 namespace Fove
 {
@@ -25,6 +26,7 @@ namespace Fove
     /*! To be passed to the initialisation function of the client library to  */
     enum class EFVR_ClientCapabilities
     {
+        None = 0x00,
         Gaze = 0x01,
         Orientation = 0x02,
         Position = 0x04
@@ -39,6 +41,11 @@ namespace Fove
     inline EFVR_ClientCapabilities operator&(EFVR_ClientCapabilities a, EFVR_ClientCapabilities b)
     {
         return static_cast<EFVR_ClientCapabilities>(static_cast<int>(a) & static_cast<int>(b));
+    }
+    inline EFVR_ClientCapabilities operator~(EFVR_ClientCapabilities a)
+    {
+        // bitwise negation
+        return static_cast<EFVR_ClientCapabilities>(~static_cast<int>(a));
     }
     /// @endcond
 
@@ -128,6 +135,20 @@ namespace Fove
         Sleeping,
         Disconnected,
         Error,
+    };
+
+    enum class EFVR_BitmapImageType
+    {
+        StereoEye = 0x00,
+        Position = 0x01
+    };
+
+    struct SFVR_BitmapImage
+    {
+        uint64_t timestamp = 0;
+        EFVR_ErrorCode error = EFVR_ErrorCode::Data_NoUpdate;
+        EFVR_BitmapImageType type;
+        std::vector<unsigned char> image;
     };
 
     //! SFVR_SystemHealth
@@ -506,7 +527,6 @@ namespace Fove
     struct SFVR_TextureBounds
     {
         ///@{
-        /** Texture bounds with range from -1 to +1 */
         float left = 0;
         float top = 0;
         float right = 0;

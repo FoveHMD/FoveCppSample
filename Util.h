@@ -5,13 +5,19 @@
 #include "FoveTypes.h"
 #include "IFVRCompositor.h"
 
+// Helper function to throw an exception if the passed error code is not None
+inline void CheckError(const Fove::EFVR_ErrorCode code, const char* const data)
+{
+	if (code != Fove::EFVR_ErrorCode::None)
+		throw std::runtime_error("Unable to get " + std::string(data) + ": " + std::to_string(static_cast<int>(code)));
+}
+
 // Helper function, which will throw if the result of a Fove call returns error
 // Use like this: const auto MyObject = CheckError(Fove->GetSomeObject(...));
 // This works on any function that returns an error via a .error field in the return object
 template<typename Type> Type&& CheckError(Type&& object, const char* const data)
 {
-	if (object.error != Fove::EFVR_ErrorCode::None)
-		throw std::runtime_error("Unable to get " + std::string(data) + ": " + std::to_string(static_cast<int>(object.error)));
+	CheckError(object.error, data);
 	return std::move(object);
 }
 

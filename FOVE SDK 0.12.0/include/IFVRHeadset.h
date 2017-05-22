@@ -90,14 +90,38 @@ namespace Fove
             \param zNear    The near plane in float, Range: from 0 to zFar
             \param zFar     The far plane in float, Range: from zNear to infinity
         */
-        virtual SFVR_Matrix44 GetProjectionMatrixLH(EFVR_Eye whichEye, float zNear, float zFar) = 0;
+        FVR_DEPRECATED(virtual SFVR_Matrix44 GetProjectionMatrixLH(EFVR_Eye whichEye, float zNear, float zFar),
+            "Please use the version which accepts an SFVR_Matrix44 pointer and returns an error code.") = 0;
+        
+        //! Assign the values of a passed-in left-handed 4x4 projection matrix for the specified eye
+        /*! Returns any error that may have occurred during the assignment.
+            \param whichEye The desired eye
+            \param zNear    The near plane in float, Range: from 0 to zFar
+            \param zFar     The far plane in float, Range: from zNear to infinity
+            \param matrix   A pointer to the matrix you want written to
+            \return         Any errors that occurred while fetching and assignign the data
+         */
+        virtual EFVR_ErrorCode GetProjectionMatrixLH(EFVR_Eye whichEye, float zNear, float zFar, SFVR_Matrix44 *matrix) = 0;
+
         //! Returns a 4x4 projection matrix for right-handed coordinate system
         /*! Returns a 4x4 projection matrix for the specified eye, and near and far planes in a right-handed coordinate system
             \param whichEye The desired eye
             \param zNear    The near plane in float, Range: from 0 to zFar
             \param zFar     The far plane in float, Range: from zNear to infinity
         */
-        virtual SFVR_Matrix44 GetProjectionMatrixRH(EFVR_Eye whichEye, float zNear, float zFar) = 0;
+        FVR_DEPRECATED(virtual SFVR_Matrix44 GetProjectionMatrixRH(EFVR_Eye whichEye, float zNear, float zFar),
+            "Please use the version which accepts an SFVR_Matrix44 pointer and returns an error code.") = 0;
+        
+        //! Assign the values of a passed-in right-handed 4x4 projection matrix for the specified eye
+        /*! Returns a 4x4 projection matrix for the specified eye, and near and far planes in a right-handed coordinate system
+            \param whichEye The desired eye
+            \param zNear    The near plane in float, Range: from 0 to zFar
+            \param zFar     The far plane in float, Range: from zNear to infinity
+            \param matrix   A pointer to the matrix you want written to
+            \return         Any errors that occurred while fetching and assignign the data
+        */
+        virtual EFVR_ErrorCode GetProjectionMatrixRH(EFVR_Eye whichEye, float zNear, float zFar, SFVR_Matrix44 *matrix) = 0;
+
         //! Returns values for the view frustum of the specified eye at 1 unit away.
         /*! Returns values for the view frustum of the specified eye at 1 unit away. Please convert yourself by multiplying by zNear.
             \param whichEye The specified eye
@@ -106,9 +130,26 @@ namespace Fove
             \param t        A float pointer, whose value will be set to the top-bound of the view-frustum (at 1 meter from the view origin)
             \param b        A float pointer, whose value will be set to the bottom-bound of the view-frustum (at 1 meter from the view origin)
         */
-        virtual void AssignRawProjectionValues(EFVR_Eye whichEye, float *l, float *r, float *t, float *b) = 0;
+        FVR_DEPRECATED(virtual void AssignRawProjectionValues(EFVR_Eye whichEye, float *l, float *r, float *t, float *b),
+            "Please use the function 'GetRawProjectionValues' instead.") = 0;
+        
+        //! Assigns values for the view frustum of the specified eye at 1 unit away.
+        /*! Assigns values for the view frustum of the specified eye at 1 unit away. Please convert yourself by multiplying by zNear.
+            \param whichEye The specified eye
+            \param l        A float pointer, whose value will be set to the left-bound of the view-frustum (at 1 meter from the view origin)
+            \param r        A float pointer, whose value will be set to the right-bound of the view-frustum (at 1 meter from the view origin)
+            \param t        A float pointer, whose value will be set to the top-bound of the view-frustum (at 1 meter from the view origin)
+            \param b        A float pointer, whose value will be set to the bottom-bound of the view-frustum (at 1 meter from the view origin)
+            \return         Any errors that occurred while fetching and assigning data
+        */
+        virtual EFVR_ErrorCode GetRawProjectionValues(EFVR_Eye whichEye, float *l, float *r, float *t, float *b) = 0;
+        
         //! Returns the matrix that converts coordinates from eye- to head-space
-        virtual SFVR_Matrix44 GetEyeToHeadMatrix(EFVR_Eye whichEye) = 0;
+        FVR_DEPRECATED(virtual SFVR_Matrix44 GetEyeToHeadMatrix(EFVR_Eye whichEye),
+            "Please use the function which takes an SFVR_Matrix44 pointer and returns an error code instead.") = 0;
+
+        //! Assigns the matrix that converts coordinates from eye- to head-space
+        virtual EFVR_ErrorCode GetEyeToHeadMatrix(EFVR_Eye whichEye, SFVR_Matrix44 *matrix) = 0;
 
         //! constructor & destructor
         virtual ~IFVRHeadset() {}

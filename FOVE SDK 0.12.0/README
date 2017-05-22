@@ -4,6 +4,21 @@ Documentation is available on our forum at http://forum.getfove.com/ and is also
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
 
+v0.12.0
+
+- Unified build for Windows 7 (BETA support only)
+- Fixes for switching Windows accounts while running FOVE software
+- Fixed some crashes in the Configuration Tool
+- Reduced CPU usage in Configuration tool
+- Support for firmware v51 **
+- Multi-GPU handling for AMD
+- Cleanup and rework of internal shared memory code
+- Smart IPC port selection to avoid ports that are in-use by other programs
+- Clicking the FOVE tray balloon tips will only launch the firmware updater when appropriate
+- Updated the matrix fetching SDK functions to return an error value, deprecated the old versions
+
+** PLEASE NOTE: by upgrading to FOVE VR v0.12.0 and HMD firmware v51, the HMD will no longer work on v0.11.4 or earlier without returning to v50
+
 v0.11.4
 
 - Added more version info about runtime/client/firmware to the Config Tool
