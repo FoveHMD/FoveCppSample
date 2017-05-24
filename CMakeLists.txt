@@ -48,6 +48,13 @@ else()
 	link_libraries("${sdk_folder}/lib/FoveClient.lib")
 endif()
 
+# Determine the utility headers we have for the current platform
+if(WIN32)
+	set(NativeUtilFiles WIN32 NativeUtil.h WindowsUtil.h WindowsUtil.cpp)
+else()
+	set(NativeUtilFiles NativeUtil.h)
+endif()
+
 # Create DirectX 11 example, and the option to enable/disable it
 if(WIN32 AND MSVC)
 	option(FOVE_BUILD_DIRECTX11_EXAMPLE "Enable building of the DirectX11 Example" ON)
@@ -56,7 +63,7 @@ else()
 endif()
 if(FOVE_BUILD_DIRECTX11_EXAMPLE)
 	# Declare the DirectX11 example target to cmake
-	add_executable(FoveDirectX11Example WIN32 Shader.vert.hlsl Shader.frag.hlsl DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
+	add_executable(FoveDirectX11Example ${NativeUtilFiles} Shader.vert.hlsl Shader.frag.hlsl DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
 
 	# Tell the build system to compile the shaders to a header file, and give the shader compiler build info like the entry point
 	set_source_files_properties(Shader.vert.hlsl PROPERTIES VS_SHADER_FLAGS "/Fh $(OutDir)%(Filename)_compiled.h" VS_SHADER_TYPE Vertex VS_SHADER_MODEL 4.0 VS_SHADER_ENTRYPOINT vert)

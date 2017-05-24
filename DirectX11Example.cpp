@@ -5,6 +5,7 @@
 #include "IFVRCompositor.h"
 #include "IFVRHeadset.h"
 #include "Model.h"
+#include "NativeUtil.h"
 #include "Util.h"
 #include <atlbase.h>
 #include <chrono>
@@ -13,7 +14,6 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <windows.h>
 
 // Include the compiled shaders
 // The .hlsl shader source files are added to the project from CMakeList.txt
@@ -24,78 +24,11 @@
 // Use std namespace for convenience
 using namespace std;
 
-// Default window size
-constexpr int windowSizeX = 1066;
-constexpr int windowSizeY = 600;
-
 // Vertex format size
 constexpr int floatsPerVert = 7;
 
 // Link the needed DirectX libraries
 #pragma comment(lib, "d3d11.lib")
-
-// Handles window messages
-LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	if (message == WM_DESTROY) {
-		PostQuitMessage(0);
-		return 0;
-	}
-
-	return DefWindowProc(window, message, wParam, lParam);
-}
-
-// Flushes the event queue for the main window
-bool FlushWindowEvents()
-{
-	while (true) {
-		MSG msg = { 0 };
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-			if (msg.message == WM_QUIT) {
-				return false;
-			}
-		} else
-			return true;
-	}
-}
-
-// Creates the main window
-// Throws if there is any error
-HWND InitWindow(HINSTANCE hInstance, int nCmdShow)
-{
-	// Register class
-	WNDCLASSEX windowClass;
-	windowClass.cbSize = sizeof(WNDCLASSEX);
-	windowClass.style = CS_HREDRAW | CS_VREDRAW;
-	windowClass.lpfnWndProc = WindowProc;
-	windowClass.cbClsExtra = 0;
-	windowClass.cbWndExtra = 0;
-	windowClass.hInstance = hInstance;
-	windowClass.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-	windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	windowClass.lpszMenuName = nullptr;
-	windowClass.lpszClassName = L"FoveWindowClass";
-	windowClass.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
-	if (!RegisterClassEx(&windowClass))
-		throw runtime_error("Unable to register window class: " + GetLastErrorAsString());
-
-	// Create window
-	RECT r = { 0, 0, windowSizeX, windowSizeY };
-	AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
-	HWND window = CreateWindow(L"FoveWindowClass", L"Fove DirectX11 Example",
-	    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
-	    CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, hInstance, nullptr);
-	if (!window)
-		throw runtime_error("Unable to create window: " + GetLastErrorAsString());
-
-	// Display the window on screen
-	ShowWindow(window, nCmdShow);
-
-	return window;
-}
 
 CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext)
 {
@@ -107,7 +40,7 @@ CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext)
 	return device;
 }
 
-CComPtr<IDXGISwapChain> CreateSwapChain(const HWND window, ID3D11Device& device, ID3D11DeviceContext& deviceContext, const Fove::SFVR_Vec2i singleEyeResolution)
+CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11Device& device, ID3D11DeviceContext& deviceContext, const Fove::SFVR_Vec2i singleEyeResolution)
 {
 	// Obtain DXGI factory from device
 	CComPtr<IDXGIFactory2> factory;
@@ -143,7 +76,7 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const HWND window, ID3D11Device& device,
 
 	// Create IDXGISwapChain1 with factory
 	CComPtr<IDXGISwapChain1> swapChain1;
-	HRESULT err = factory->CreateSwapChainForHwnd(&device, window, &swapChainDesc, nullptr, nullptr, &swapChain1);
+	HRESULT err = factory->CreateSwapChainForHwnd(&device, nativeWindow.window, &swapChainDesc, nullptr, nullptr, &swapChain1);
 	if (FAILED(err) || !swapChain1)
 		throw runtime_error("Unable to create swap chain: " + HResultToString(err));
 
@@ -169,8 +102,9 @@ void RenderScene(ID3D11DeviceContext& deviceContext, ID3D11Buffer& constantsBuff
 	deviceContext.Draw(numVerts, 0);
 }
 
-// Main program entry point and loop
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow) try {
+// Platform-independant main program entry point and loop
+// This is invoked from WinMain in WindowsUtil.cpp
+void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Connect to headset
 	unique_ptr<Fove::IFVRHeadset> headset{ Fove::GetFVRHeadset() };
 	if (!headset)
@@ -186,10 +120,10 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	const Fove::SFVR_Vec2i singleEyeResolution = GetSingleEyeResolutionWithTimeout(*compositor);
 
 	// Setup
-	const HWND window = InitWindow(hInstance, nCmdShow);
+	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "Five DirectX11 Example");
 	CComPtr<ID3D11DeviceContext> deviceContext;
 	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext);
-	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(window, *device, *deviceContext, singleEyeResolution);
+	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, singleEyeResolution);
 
 	// Get back buffer
 	CComPtr<ID3D11Texture2D> backBuffer;
@@ -316,7 +250,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	// Main loop
 	while (true) {
 		// Update
-		if (!FlushWindowEvents())
+		if (!FlushWindowEvents(nativeWindow))
 			break;
 
 		// Wait for the compositor to tell us to render
@@ -372,10 +306,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 		if (FAILED(err))
 			throw runtime_error("Unable to present: " + HResultToString(err));
 	}
-
-	return 0;
 } catch (const exception& e) {
 	// Display any error as a popup box then exit the program
-	MessageBox(0, ToUtf16(e.what()).c_str(), L"Error", MB_OK);
-	return -1;
+	ShowErrorBox(e.what());
 }
