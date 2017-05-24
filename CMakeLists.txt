@@ -56,7 +56,14 @@ else()
 endif()
 if(FOVE_BUILD_DIRECTX11_EXAMPLE)
 	# Declare the DirectX11 example target to cmake
-	add_executable(FoveDirectX11Example WIN32 DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
+	add_executable(FoveDirectX11Example WIN32 Shader.vert.hlsl Shader.frag.hlsl DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
+
+	# Tell the build system to compile the shaders to a header file, and give the shader compiler build info like the entry point
+	set_source_files_properties(Shader.vert.hlsl PROPERTIES VS_SHADER_FLAGS "/Fh $(OutDir)%(Filename)_compiled.h" VS_SHADER_TYPE Vertex VS_SHADER_MODEL 4.0 VS_SHADER_ENTRYPOINT vert)
+	set_source_files_properties(Shader.frag.hlsl PROPERTIES VS_SHADER_FLAGS "/Fh $(OutDir)%(Filename)_compiled.h" VS_SHADER_TYPE Pixel  VS_SHADER_MODEL 4.0 VS_SHADER_ENTRYPOINT frag)
+
+	# Add the build directory where the compiled shader header files will be put
+	include_directories("${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
 
 	# Add the DirectX11 example to our list of targets which is used below
 	list(APPEND alltargets FoveDirectX11Example)

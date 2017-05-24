@@ -9,12 +9,17 @@
 #include <windows.h>
 #include <atlbase.h>
 #include <d3d11_1.h>
-#include <d3dcompiler.h>
 #include "IFVRHeadset.h"
 #include "IFVRCompositor.h"
 #include "Util.h"
 #include "DXUtil.h"
 #include "Model.h"
+
+// Include the compiled shaders
+// The .hlsl shader source files are added to the project from CMakeList.txt
+// The build process will then compile them into C arrays and generate these header files
+#include "Shader.vert_compiled.h"
+#include "Shader.frag_compiled.h"
 
 // Use std namespace for convenience
 using namespace std;
@@ -28,54 +33,6 @@ constexpr int floatsPerVert = 7;
 
 // Link the needed DirectX libraries
 #pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "D3DCompiler.lib")
-
-// Vertex shader
-const string vertSource =
-	"float4x4 modelView;"
-	"struct VSI {"
-		"float4 p : POSITION0;"
-		"float3 c : COLOR;"
-	"};"
-	"struct VSO {"
-		"float4 p : SV_POSITION;"
-		"float3 c : COLOR;"
-	"};"
-	"VSO VS(VSI i) {"
-		"VSO ret;"
-		"ret.p = mul(i.p, modelView);"
-		"ret.c = i.c;"
-		"return ret;"
-	"}";
-
-const string fragSource =
-	"struct VSO {"
-		"float4 p : SV_POSITION;"
-		"float3 c : COLOR;"
-	"};"
-	"float4 PS(VSO i) : SV_Target {"
-		"return float4(i.c.r, i.c.g, i.c.b, 1.0f);"
-	"}";
-
-// Helper function to compile a shader
-// Throws if theres an error, never returns null
-CComPtr<ID3DBlob> CompileShader(const string& shaderSource, const bool isVert)
-{
-	// Have DirectX compile the shader
-	CComPtr<ID3DBlob> shaderBlob, errorBlob;
-	HRESULT err = D3DCompile(shaderSource.data(), shaderSource.size(), nullptr, nullptr, nullptr, isVert ? "VS" : "PS", isVert ? "vs_4_0" : "ps_4_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &shaderBlob, &errorBlob);
-
-	// Check for error
-	if (FAILED(err) || !shaderBlob)
-	{
-		string errorString = "Failed to compile " + string(isVert ? "vertex" : "pixel") + " shader (" + HResultToString(err) + ")";
-		if (errorBlob)
-			errorString += ":\n" + string((const char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize());
-		throw runtime_error(errorString);
-	}
-
-	return shaderBlob;
-}
 
 // Handles window messages
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -308,9 +265,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	rightViewport.TopLeftX = (FLOAT)singleEyeResolution.x;
 
 	// Create the vertex shader
-	const CComPtr<ID3DBlob> vertShaderBlob = CompileShader(vertSource, true);
 	CComPtr<ID3D11VertexShader> vertexShader;
-	err = device->CreateVertexShader(vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), nullptr, &vertexShader);
+	err = device->CreateVertexShader(g_vert, sizeof(g_vert), nullptr, &vertexShader);
 	if (FAILED(err) || !vertexShader)
 		throw runtime_error("Unable to create vertex shader: " + HResultToString(err));
 	deviceContext->VSSetShader(vertexShader, nullptr, 0);
@@ -320,15 +276,14 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	CComPtr<ID3D11InputLayout> vertexLayout;
-	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), vertShaderBlob->GetBufferPointer(), vertShaderBlob->GetBufferSize(), &vertexLayout);
+	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), g_vert, sizeof(g_vert), &vertexLayout);
 	if (FAILED(err) || !vertexLayout)
 		throw runtime_error("Unable to create vertex layout: " + HResultToString(err));
 	deviceContext->IASetInputLayout(vertexLayout);
 
 	// Create and set the pixel shader
-	const CComPtr<ID3DBlob> pixelShaderBlob = CompileShader(fragSource, false);
 	CComPtr<ID3D11PixelShader> pixelShader;
-	err = device->CreatePixelShader(pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize(), nullptr, &pixelShader);
+	err = device->CreatePixelShader(g_frag, sizeof(g_frag), nullptr, &pixelShader);
 	if (FAILED(err) || !pixelShader)
 		throw runtime_error("Unable to create pixel shader: " + HResultToString(err));
 	deviceContext->PSSetShader(pixelShader, nullptr, 0);
