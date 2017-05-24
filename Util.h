@@ -4,6 +4,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 // Helper function to throw an exception if the passed error code is not None
 inline void CheckError(const Fove::EFVR_ErrorCode code, const char* const data)
@@ -45,3 +46,10 @@ Fove::SFVR_Matrix44 operator*(const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Ma
 using ErrorType = unsigned long;                      // Equivalent to DWORD on windows
 std::string GetErrorString(ErrorType error) noexcept; // Turns an OS-specific error into a string with detailed info if possible
 std::string GetLastErrorAsString() noexcept;          // Passes the OS-specific last-error function (GetLastError() on windows) through GetErrorString
+
+// Helper function to change an enum into the underlying value
+template <typename EnumType>
+typename std::underlying_type<EnumType>::type EnumToUnderlyingValue(const EnumType enumValue)
+{
+	return static_cast<typename std::underlying_type<EnumType>::type>(enumValue);
+}

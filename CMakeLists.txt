@@ -55,6 +55,16 @@ else()
 	set(NativeUtilFiles NativeUtil.h)
 endif()
 
+# Create the data example, and the option to enable/disable it
+option(FOVE_BUILD_DATA_EXAMPLE "Enable building of the Data Example" ON)
+if(FOVE_BUILD_DATA_EXAMPLE)
+	# Declare the Data example target to cmake
+	add_executable(FoveDataExample DataExample.cpp Util.h Util.cpp)
+
+	# Add the Data example to our list of targets which is used below
+	list(APPEND alltargets FoveDataExample)
+endif()
+
 # Create DirectX 11 example, and the option to enable/disable it
 if(WIN32 AND MSVC)
 	option(FOVE_BUILD_DIRECTX11_EXAMPLE "Enable building of the DirectX11 Example" ON)

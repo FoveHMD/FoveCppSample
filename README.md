@@ -1,6 +1,12 @@
-# FOVE C++ Example
+# FOVE C++ Examples
 
-This repository contains a C++ program that demonstrates how to use the FOVE SDK. It currently does the following:
+This repository contains C++ programs that demonstrates how to use the FOVE SDK.
+
+The data example shows how to:
+- Properly connect to the service
+- Read out data and check for error
+
+The DirectX11 example demonstrates the following:
 - DirectX setup
 - Orientation tracking
 - Position tracking
