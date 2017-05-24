@@ -1,25 +1,25 @@
 // FOVE DirextX11 Example
 // This shows how to display content in a FOVE HMD via the FOVE SDK & DirectX 11
 
+#include "DXUtil.h"
+#include "IFVRCompositor.h"
+#include "IFVRHeadset.h"
+#include "Model.h"
+#include "Util.h"
+#include <atlbase.h>
 #include <chrono>
+#include <d3d11_1.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <thread>
-#include <stdexcept>
 #include <windows.h>
-#include <atlbase.h>
-#include <d3d11_1.h>
-#include "IFVRHeadset.h"
-#include "IFVRCompositor.h"
-#include "Util.h"
-#include "DXUtil.h"
-#include "Model.h"
 
 // Include the compiled shaders
 // The .hlsl shader source files are added to the project from CMakeList.txt
 // The build process will then compile them into C arrays and generate these header files
-#include "Shader.vert_compiled.h"
 #include "Shader.frag_compiled.h"
+#include "Shader.vert_compiled.h"
 
 // Use std namespace for convenience
 using namespace std;
@@ -37,8 +37,7 @@ constexpr int floatsPerVert = 7;
 // Handles window messages
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	if (message == WM_DESTROY)
-	{
+	if (message == WM_DESTROY) {
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -49,19 +48,15 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
 // Flushes the event queue for the main window
 bool FlushWindowEvents()
 {
-	while (true)
-	{
+	while (true) {
 		MSG msg = { 0 };
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-		{
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-			if (msg.message == WM_QUIT)
-			{
+			if (msg.message == WM_QUIT) {
 				return false;
 			}
-		}
-		else
+		} else
 			return true;
 	}
 }
@@ -91,8 +86,8 @@ HWND InitWindow(HINSTANCE hInstance, int nCmdShow)
 	RECT r = { 0, 0, windowSizeX, windowSizeY };
 	AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
 	HWND window = CreateWindow(L"FoveWindowClass", L"Fove DirectX11 Example",
-		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
-		CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, hInstance, nullptr);
+	    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
+	    CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, hInstance, nullptr);
 	if (!window)
 		throw runtime_error("Unable to create window: " + GetLastErrorAsString());
 
@@ -106,7 +101,7 @@ CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext)
 {
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 	CComPtr<ID3D11Device> device;
-	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0/*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &device, nullptr, &deviceContext);
+	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0 /*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &device, nullptr, &deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
 		throw runtime_error("Unable to create device: " + HResultToString(err));
 	return device;
@@ -175,8 +170,7 @@ void RenderScene(ID3D11DeviceContext& deviceContext, ID3D11Buffer& constantsBuff
 }
 
 // Main program entry point and loop
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow) try
-{
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow) try {
 	// Connect to headset
 	unique_ptr<Fove::IFVRHeadset> headset{ Fove::GetFVRHeadset() };
 	if (!headset)
@@ -272,8 +266,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	deviceContext->VSSetShader(vertexShader, nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	CComPtr<ID3D11InputLayout> vertexLayout;
 	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), g_vert, sizeof(g_vert), &vertexLayout);
@@ -320,8 +314,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	deviceContext->VSSetConstantBuffers(0, 1, BindInputArray(constantBuffer));
 
 	// Main loop
-	while (true)
-	{
+	while (true) {
 		// Update
 		if (!FlushWindowEvents())
 			break;
@@ -332,7 +325,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 
 		// Render
 		{
-			// Clear the back buffer 
+			// Clear the back buffer
 			const float color[] = { 0.3f, 0.3f, 0.8f, 0.3f };
 			deviceContext->ClearRenderTargetView(renderTargetView, color);
 			deviceContext->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
@@ -381,9 +374,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _
 	}
 
 	return 0;
-}
-catch (const exception &e)
-{
+} catch (const exception& e) {
 	// Display any error as a popup box then exit the program
 	MessageBox(0, ToUtf16(e.what()).c_str(), L"Error", MB_OK);
 	return -1;

@@ -1,9 +1,9 @@
 #pragma once
-#include <chrono>
-#include <string>
-#include <stdexcept>
 #include "FoveTypes.h"
 #include "IFVRCompositor.h"
+#include <chrono>
+#include <stdexcept>
+#include <string>
 
 // Helper function to throw an exception if the passed error code is not None
 inline void CheckError(const Fove::EFVR_ErrorCode code, const char* const data)
@@ -15,7 +15,8 @@ inline void CheckError(const Fove::EFVR_ErrorCode code, const char* const data)
 // Helper function, which will throw if the result of a Fove call returns error
 // Use like this: const auto MyObject = CheckError(Fove->GetSomeObject(...));
 // This works on any function that returns an error via a .error field in the return object
-template<typename Type> Type&& CheckError(Type&& object, const char* const data)
+template <typename Type>
+Type&& CheckError(Type&& object, const char* const data)
 {
 	CheckError(object.error, data);
 	return std::move(object);
@@ -25,9 +26,9 @@ template<typename Type> Type&& CheckError(Type&& object, const char* const data)
 // Since this requires the connection to be made, this will block up to a certain amount of time to retrieve the resolution
 // If the timeout elapses, the default value will be returned instead
 Fove::SFVR_Vec2i GetSingleEyeResolutionWithTimeout(
-	const Fove::IFVRCompositor& compositor,
-	std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
-	Fove::SFVR_Vec2i defaultValue = { 1280, 1440 });
+    const Fove::IFVRCompositor& compositor,
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
+    Fove::SFVR_Vec2i defaultValue = { 1280, 1440 });
 
 // Conversions between UTF-8 and UTF-16
 std::string ToUtf8(const std::wstring& utf16);
@@ -38,7 +39,7 @@ Fove::SFVR_Quaternion AxisAngleToQuat(float vx, float vy, float vz, float angle)
 Fove::SFVR_Matrix44 QuatToMatrix(Fove::SFVR_Quaternion q);
 Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m);
 Fove::SFVR_Matrix44 TranslationMatrix(float x, float y, float z);
-Fove::SFVR_Matrix44 operator * (const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Matrix44& m2);
+Fove::SFVR_Matrix44 operator*(const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Matrix44& m2);
 
 // Error utilities
 using ErrorType = unsigned long;                      // Equivalent to DWORD on windows

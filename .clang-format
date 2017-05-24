@@ -1,0 +1,15 @@
+# Format file for the FOVE C++ Example
+#
+# This helps ensure consistent style.
+# You can format all code by installing clang-format and do the following:
+# >> git add <files>            <-- Stage your changes for commit (as is)
+# >> clang-format -i *.cpp *.h  <-- Format all C++ code in the project
+# >> git diff                   <-- See what formatting was changed
+---
+BasedOnStyle:          Webkit
+Standard:              Cpp11
+IndentWidth:           4
+TabWidth:              4
+UseTab:                ForIndentation
+AlignTrailingComments: true
+
