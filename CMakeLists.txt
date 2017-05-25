@@ -42,7 +42,7 @@ else()
 	endif()
 
 	# Setup build parameters
-	set(CMAKE_CXX_STANDARD 14)
+	set(CMAKE_CXX_STANDARD 11)
 	add_definitions(-DUNICODE)
 	include_directories("${sdk_folder}/include")
 	link_libraries("${sdk_folder}/lib/FoveClient.lib")
