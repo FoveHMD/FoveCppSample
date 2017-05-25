@@ -79,6 +79,30 @@ if(FOVE_BUILD_DIRECTX11_EXAMPLE)
 	list(APPEND alltargets FoveDirectX11Example)
 endif()
 
+# Create the OpenGL example, and the option to enable/disable it
+if(WIN32)
+	option(FOVE_BUILD_OPENGL_EXAMPLE "Enable building of the OpenGL Example" ON)
+else()
+	option(FOVE_BUILD_OPENGL_EXAMPLE "Enable building of the OpenGL Example" OFF)
+endif()
+if(FOVE_BUILD_OPENGL_EXAMPLE)
+	# Declare platform specific files
+	if (WIN32)
+		set(FoveOpenGLExamplePlatformSourceFiles DXUtil.h DXUtil.cpp)
+	endif()
+
+	# Declare the OpenGL example target to cmake
+	add_executable(FoveOpenGLExample ${NativeUtilFiles} OpenGLExample.cpp Util.h Util.cpp OpenGLUtil.h OpenGLUtil.cpp ${FoveOpenGLExamplePlatformSourceFiles})
+
+	# Link to OpenGL libraries
+	if (WIN32)
+		target_link_libraries(FoveOpenGLExample "opengl32.lib")
+	endif()
+
+	# Add the OpenGL example to our list of targets which is used below
+	list(APPEND alltargets FoveOpenGLExample)
+endif()
+
 # Create the data example, and the option to enable/disable it
 option(FOVE_BUILD_DATA_EXAMPLE "Enable building of the Data Example" ON)
 if(FOVE_BUILD_DATA_EXAMPLE)

@@ -3,10 +3,6 @@
 
 using namespace std;
 
-// Default window size
-constexpr int windowSizeX = 1066;
-constexpr int windowSizeY = 600;
-
 // Handles window messages
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
