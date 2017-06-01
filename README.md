@@ -12,8 +12,7 @@ The DirectX11 example demonstrates the following:
 - Position tracking
 - Stereo rendering
 - Submitting frames to the FOVE Compositor
-
-More features are planned in the future, including Eye Tracking.
+- Eye tracking (objects are highlighted when gazed upon)
 
 ## How to build
 

@@ -90,6 +90,16 @@ Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m)
 	return ret;
 }
 
+Fove::SFVR_Vec3 TransformPoint(const Fove::SFVR_Matrix44& transform, Fove::SFVR_Vec3 point, float w)
+{
+	// w is passed separately since we don't have a SFVR_Vec4 type
+	return {
+		transform.mat[0][0] * point.x + transform.mat[0][1] * point.y + transform.mat[0][2] * point.z + transform.mat[0][3] * w,
+		transform.mat[1][0] * point.x + transform.mat[1][1] * point.y + transform.mat[1][2] * point.z + transform.mat[1][3] * w,
+		transform.mat[2][0] * point.x + transform.mat[2][1] * point.y + transform.mat[2][2] * point.z + transform.mat[2][3] * w,
+	};
+}
+
 Fove::SFVR_Matrix44 TranslationMatrix(const float x, const float y, const float z)
 {
 	Fove::SFVR_Matrix44 ret;
@@ -124,6 +134,25 @@ Fove::SFVR_Matrix44 operator*(const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Ma
 		}
 	}
 	return ret;
+}
+
+bool RaySphereCollision(const Fove::SFVR_Ray ray, const Fove::SFVR_Vec3 sphereCenter, const float sphereRadius)
+{
+	// Check if the sphere is behind the ray
+	const Fove::SFVR_Vec3 rayToCenter = sphereCenter - ray.origin;
+	const float d = Dot(ray.direction, rayToCenter);
+	if (d <= 0)
+		return false;
+
+	// Find the closest point on the ray to the sphere
+	// This assumes the ray direction is normalized
+	const Fove::SFVR_Vec3 closestPoint = ray.direction * d;
+
+	// Check if the distance to the closest point is within the radius
+	// Squared values are used to avoid doing a square root to get the distance
+	const float radiusSquared = sphereRadius * sphereRadius;
+	const float distanceSquared = DistanceSquared(closestPoint, rayToCenter);
+	return distanceSquared <= radiusSquared;
 }
 
 string GetErrorString(const ErrorType error) noexcept try {

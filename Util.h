@@ -2,6 +2,7 @@
 #include "FoveTypes.h"
 #include "IFVRCompositor.h"
 #include <chrono>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -40,7 +41,18 @@ Fove::SFVR_Quaternion AxisAngleToQuat(float vx, float vy, float vz, float angle)
 Fove::SFVR_Matrix44 QuatToMatrix(Fove::SFVR_Quaternion q);
 Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m);
 Fove::SFVR_Matrix44 TranslationMatrix(float x, float y, float z);
+Fove::SFVR_Vec3 TransformPoint(const Fove::SFVR_Matrix44& transform, Fove::SFVR_Vec3 point, float w);
 Fove::SFVR_Matrix44 operator*(const Fove::SFVR_Matrix44& m1, const Fove::SFVR_Matrix44& m2);
+inline Fove::SFVR_Vec3 operator*(Fove::SFVR_Vec3 v, float scalar) { return { v.x * scalar, v.y * scalar, v.z * scalar }; }
+inline Fove::SFVR_Vec3 operator/(Fove::SFVR_Vec3 v, float scalar) { return { v.x / scalar, v.y / scalar, v.z / scalar }; }
+inline Fove::SFVR_Vec3 operator+(Fove::SFVR_Vec3 v1, Fove::SFVR_Vec3 v2) { return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z }; }
+inline Fove::SFVR_Vec3 operator-(Fove::SFVR_Vec3 v1, Fove::SFVR_Vec3 v2) { return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z }; }
+inline float Dot(Fove::SFVR_Vec3 v1, Fove::SFVR_Vec3 v2) { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
+inline float MagnitudeSquared(Fove::SFVR_Vec3 v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
+inline float Magnitude(Fove::SFVR_Vec3 v) { return std::sqrt(MagnitudeSquared(v)); }
+inline float DistanceSquared(Fove::SFVR_Vec3 v1, Fove::SFVR_Vec3 v2) { return MagnitudeSquared(v1 - v2); }
+inline Fove::SFVR_Vec3 Normalize(Fove::SFVR_Vec3 v) { return v / Magnitude(v); }
+bool RaySphereCollision(Fove::SFVR_Ray ray, Fove::SFVR_Vec3 sphereCenter, float sphereRadius);
 
 // Error utilities
 using ErrorType = unsigned long;                      // Equivalent to DWORD on windows
