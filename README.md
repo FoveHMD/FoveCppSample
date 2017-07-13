@@ -1,6 +1,6 @@
 # FOVE C++ Examples
 
-This repository contains C++ programs that demonstrates how to use the FOVE SDK.
+This repository contains C++ programs that demonstrate how to use the FOVE SDK.
 
 The data example shows how to:
 - Properly connect to the service
@@ -13,6 +13,11 @@ The DirectX11 example demonstrates the following:
 - Stereo rendering
 - Submitting frames to the FOVE Compositor
 - Eye tracking (objects are highlighted when gazed upon)
+- Displaying the rendered scene in a window in addition to the HMD
+
+The OpenGL example is similar to the DirectX11 example, except:
+- Uses OpenGL for rendering
+- Uses the WGL_NV_DX_interop2 extension to render to a DirectX11 surface (needed for submission to the FOVE compositor)
 
 ## How to build
 
