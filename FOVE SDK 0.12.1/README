@@ -4,6 +4,23 @@ Documentation is available on our forum at http://forum.getfove.com/ and is also
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
 
+v0.12.1
+
+- Added filtering to Config Tool logs
+- Added .exe names to log file
+- Performance improvements for Compositor
+- Performance improvements for Config Tool
+- Config Tool no longer launches runtime
+- Fixed thread safety issue in client
+- Fixed blending issues in text drawing
+- Fixed memory leak in Compositor client
+- Fixed an issue with calibration and dual-GPU setups
+- Fixed issue with eye calibration
+- Fixed issue with unicode paths in Windows
+- Miscellaneous bug fixes
+
+** PLEASE NOTE: by upgrading to FOVE VR v0.12.X and HMD firmware v51, the HMD will no longer work on v0.11.4 or earlier without returning to v50
+
 v0.12.0
 
 - Unified build for Windows 7 (BETA support only)

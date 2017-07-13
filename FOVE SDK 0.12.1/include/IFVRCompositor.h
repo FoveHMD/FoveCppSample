@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _IFVRCOMPOSITOR_H
-#define _IFVRCOMPOSITOR_H
-
 #include "FoveTypes.h"
 
 namespace Fove
@@ -53,5 +50,3 @@ namespace Fove
     */
     FVR_EXPORT IFVRCompositor* GetFVRCompositor(const SFVR_ClientInfo &clientInfo = SFVR_ClientInfo());
 }
-
-#endif // _IFVRCOMPOSITOR_H

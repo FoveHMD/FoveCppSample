@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _IFVRHEADSET_H
-#define _IFVRHEADSET_H
-
 #include "FoveTypes.h"
 
 // This is purely need for doxygen documentation
@@ -181,4 +178,3 @@ namespace Fove
 
     FVR_EXPORT IFVRHeadset* GetFVRHeadset();
 }
-#endif // _IFVRHEADSET_H

@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _FOVETYPES_H
-#define _FOVETYPES_H
-
 #ifdef __GNUC__
 #define FVR_DEPRECATED(func, rem) func __attribute__ ((deprecated(rem)))
 #define FVR_EXPORT __attribute__((visibility("default")))
@@ -11,7 +8,7 @@
 #define FVR_EXPORT __declspec(dllexport)
 #else
 #pragma message("WARNING: You need to implement DEPRECATED for this compiler")
-#define FVR_DEPRECATED(func) func
+#define FVR_DEPRECATED(func, rem) func
 #define FVR_EXPORT
 #endif
 
@@ -247,20 +244,6 @@ namespace Fove
         }
     };
 
-    //! Struct to represent the orientation of the Fove headset in 3d space
-    /*! Represents the orientation of the Fove headset in 3d space along with some meta-information about how old this data is. */
-    struct SFVR_HeadOrientation
-    {
-        /*! error: if true => the rest of the data is in an unknown state. */
-        EFVR_ErrorCode error = EFVR_ErrorCode::None;
-        /*! Incremental counter which tells if the coord captured is a fresh value at a given frame */
-        std::uint64_t id = 0;
-        /*! The time at which the coord was captured, based on system time */
-        std::uint64_t timestamp = 0;
-        /*! The Quaternion which represents the orientation of the head. */
-        SFVR_Quaternion quat;
-    };
-
     //! Struct to represent a 3D-vector
     /*! A vector that represents an position in 3d space. */
     struct SFVR_Vec3
@@ -343,7 +326,7 @@ namespace Fove
         EFVR_ErrorCode error = EFVR_ErrorCode::None;
         /*! Incremental counter which tells if the coord captured is a fresh value at a given frame */
         std::uint64_t id = 0;
-        /*! The time at which the coord was captured, based on system time */
+        /*! The time at which the pose was captured, in milliseconds since an unspecified epoch */
         std::uint64_t timestamp = 0;
         /*! The Quaternion which represents the orientation of the head. */
         SFVR_Quaternion orientation;
@@ -368,7 +351,7 @@ namespace Fove
         EFVR_ErrorCode error = EFVR_ErrorCode::None;
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
-        /*! The time at which the convergence data was captured, based on system time */
+        /*! The time at which the gaze data was captured, in milliseconds since an unspecified epoch */
         std::uint64_t timestamp = 0;
         SFVR_Vec3 vector = { 0, 0, 1 };
     };
@@ -381,7 +364,7 @@ namespace Fove
         EFVR_ErrorCode error = EFVR_ErrorCode::None;
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
-        /*! The time at which the convergence data was captured, based on system time */
+        /*! The time at which the convergence data was captured, in milliseconds since an unspecified epoch */
         std::uint64_t timestamp = 0;
         /*! The ray pointing towards the expected convergence point */
         SFVR_Ray ray;
@@ -534,4 +517,3 @@ namespace Fove
         ///@}
     };
 }
-#endif // _FOVETYPES_H
