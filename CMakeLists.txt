@@ -73,7 +73,7 @@ if(FOVE_BUILD_DIRECTX11_EXAMPLE)
 	# Note: include_directories/target_include_directories directories don't work here
 	# Cmake treats $(OutDir) as a relative path and prepends stuff to it to make it absolute
 	# Instead, use the compiler flags to add the include directory to avoid changes from cmake
-	set(CMAKE_CXX_FLAGS "\"/I$(OutDir)\"" )
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \"/I$(OutDir)\"")
 
 	# Add the DirectX11 example to our list of targets which is used below
 	list(APPEND alltargets FoveDirectX11Example)

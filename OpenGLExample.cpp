@@ -242,7 +242,7 @@ RenderSurface GenerateRenderSurface(const Fove::SFVR_Vec2i singleEyeResolution)
 		// Setup description for a D3D texture
 		D3D11_TEXTURE2D_DESC desc;
 		ZeroMemory(&desc, sizeof(desc));
-		desc.Width = singleEyeResolution.x * 2.0f;
+		desc.Width = singleEyeResolution.x * 2;
 		desc.Height = singleEyeResolution.y;
 		desc.MipLevels = 1;
 		desc.ArraySize = 1;
@@ -376,7 +376,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		GlResource<GlResourceType::Buffer> vbo;
 		vbo.CreateAndBind(GL_ARRAY_BUFFER);
 
-		GlCall(glBufferData, GL_ARRAY_BUFFER, sizeof(levelModelVerts), levelModelVerts, GL_STATIC_DRAW);
+		GlCall(glBufferData, GL_ARRAY_BUFFER, (GLsizeiptr)sizeof(levelModelVerts), levelModelVerts, GL_STATIC_DRAW);
 
 		return vbo;
 	}();
@@ -396,8 +396,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 		// Bind the vertex array
 		constexpr size_t stride = sizeof(float) * floatsPerVert;
-		GlCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, stride, (void*)0);
-		GlCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(float) * floatsPerVert, (void*)(sizeof(float) * 4));
+		GlCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, (GLsizei)stride, (void*)0);
+		GlCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, GLsizei(sizeof(float) * floatsPerVert), (void*)(sizeof(float) * 4));
 
 		return vao;
 	}();
@@ -415,7 +415,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			1.0f, -1.0f,
 			1.0f, 1.0f,
 		};
-		GlCall(glBufferData, GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+		GlCall(glBufferData, GL_ARRAY_BUFFER, (GLsizei)sizeof(verts), verts, GL_STATIC_DRAW);
 		return vbo;
 	}();
 
@@ -550,7 +550,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 					// Issue draw command
 					static constexpr size_t numVerts = sizeof(levelModelVerts) / (sizeof(float) * floatsPerVert);
-					GlCall(glDrawArrays, GL_TRIANGLES, 0, numVerts);
+					GlCall(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)numVerts);
 				}
 			};
 
