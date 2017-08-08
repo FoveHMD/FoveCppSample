@@ -22,17 +22,18 @@ int main() try {
 	// Initialiase the headset
 	// This allows us to declare what capabilities we would like enabled
 	// Doing so may enable hardware or software, and thus consume resources, so it's important to only use capabilities that you know you need
-	headset->Initialise(Fove::EFVR_ClientCapabilities::Gaze);
+	CheckError(headset->Initialise(Fove::EFVR_ClientCapabilities::Gaze), "Initialise");
 
 	// Loop indefinitely
 	while (true) {
 
 		// Fetch the left gaze vector
 		// You can swap this out with other IFVRHeadset functions to get other types of data
-		const Fove::SFVR_GazeVector leftGaze = headset->GetGazeVector(Fove::EFVR_Eye::Left);
+		Fove::SFVR_GazeVector leftGaze, rightGaze;
+		const Fove::EFVR_ErrorCode error = headset->GetGazeVectors(&leftGaze, &rightGaze);
 
 		// Check for error
-		switch (leftGaze.error) {
+		switch (error) {
 
 		case Fove::EFVR_ErrorCode::None:
 			// If there was no error, we are allowed to access the other members of the struct
@@ -40,10 +41,14 @@ int main() try {
 			     << setw(6) << leftGaze.vector.x << ", "
 			     << setw(6) << leftGaze.vector.y << ", "
 			     << setw(6) << leftGaze.vector.z << ')' << endl;
+			cout << "Right Gaze Vector: (" << fixed << setprecision(3)
+			     << setw(6) << rightGaze.vector.x << ", "
+			     << setw(6) << rightGaze.vector.y << ", "
+			     << setw(6) << rightGaze.vector.z << ')' << endl;
 			break;
 
 		case Fove::EFVR_ErrorCode::Connect_NotConnected:
-			cerr << "Not connected" << endl;
+			cerr << "Not connected to service" << endl;
 			break;
 
 		case Fove::EFVR_ErrorCode::Data_NoUpdate:
@@ -52,7 +57,7 @@ int main() try {
 
 		default:
 			// Less common errors are simply logged with their numeric value
-			cerr << "Error #" << EnumToUnderlyingValue(leftGaze.error) << endl;
+			cerr << "Error #" << EnumToUnderlyingValue(error) << endl;
 			break;
 		}
 

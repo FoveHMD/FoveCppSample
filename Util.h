@@ -24,14 +24,6 @@ Type&& CheckError(Type&& object, const char* const data)
 	return std::move(object);
 }
 
-// Queries the ideal render resolution for a single eye from the compositor
-// Since this requires the connection to be made, this will block up to a certain amount of time to retrieve the resolution
-// If the timeout elapses, the default value will be returned instead
-Fove::SFVR_Vec2i GetSingleEyeResolutionWithTimeout(
-    const Fove::IFVRCompositor& compositor,
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
-    Fove::SFVR_Vec2i defaultValue = { 1280, 1440 });
-
 // Conversions between UTF-8 and UTF-16
 std::string ToUtf8(const std::wstring& utf16);
 std::wstring ToUtf16(const std::string& str);

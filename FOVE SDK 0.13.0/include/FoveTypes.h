@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef __GNUC__
-#define FVR_DEPRECATED(func, rem) func __attribute__ ((deprecated(rem)))
+#define FVR_DEPRECATED(func, rem) __attribute__ ((deprecated(rem))) func
 #define FVR_EXPORT __attribute__((visibility("default")))
 #elif defined(_MSC_VER)
 #define FVR_DEPRECATED(func, rem) __declspec(deprecated(rem)) func
@@ -47,7 +47,6 @@ namespace Fove
     /// @endcond
 
     //! An enum of error codes that the system may return
-    /*! An enum of error codes that the system may return from GetLastError(). These will eventually be mapped to localised strings. */
     enum class EFVR_ErrorCode
     {
         None = 0,
@@ -62,12 +61,25 @@ namespace Fove
         Connect_HeartbeatNoReply = 5,
         Connect_ClientVersionTooOld = 6,
 
+        //! API usage errors
+        API_General = 100,                 //!< There was an error in the usage of the API other than one of the others in this section
+        API_InitNotCalled = 101,           //!< A function that should only be called after Initialise() was invoked before/without Initialise()
+        API_InitAlreadyCalled = 102,       //!< A function that should only be called before Initialise() was invoked, or Initialise() was invoked multiple times
+        API_InvalidArgument = 103,         //!< An argument passed to an API function was invalid for a reason other than one of the below reasons
+        API_NotRegistered = 104,           //!< Data was queried without first registering for that data
+        API_NullInPointer = 110,           //!< An input argument passed to an API function was invalid for a reason other than the below reasons
+        API_InvalidEnumValue = 111,        //!< An enum argument passed to an API function was invalid
+        API_NullOutPointersOnly = 120,     //!< All output arguments were null on a function that requires at least one output (all getters that have no side effects)
+        API_OverlappingOutPointers = 121,  //!< Two (or more) output parameters passed to an API function overlap in memory. Each output parameter should be a unique, separate object.
+        API_CompositorNotSwapped = 122,    //!< This comes from submitting without calling WaitForRenderPose after a complete submit.
+
         //! Data Errors
         Data_General = 1000,
         Data_RegisteredWrongVersion = 1001,
         Data_UnreadableNotFound = 1002,
         Data_NoUpdate = 1003,
         Data_Uncalibrated = 1004,
+        Data_MissingIPCData = 1005,
 
         //! Hardware Errors
         Hardware_General = 2000,
@@ -111,6 +123,19 @@ namespace Fove
         //! User
         User_General = 7000,
         User_ErrorLoadingProfile = 7001,
+
+        //! Compositor
+        Compositor_UnableToCreateDeviceAndContext = 8000, //!< Compositor was unable to initialize its backend component.
+        Compositor_UnableToUseTexture = 8001,             //!< Compositor was unable to use the given texture (likely due to mismatched client and data types or an incompatible format).
+        Compositor_DeviceMismatch = 8002,                 //!< Compositor was unable to match its device to the texture's, either because of multiple GPUs or a failure to get the device from the texture.
+        Compositor_IncompatibleCompositorVersion = 8003,  //!< Compositor client is not compatible with the currently running compositor.
+        Compositor_UnableToFindRuntime = 8004,            //!< Compositor isn't running or isn't responding.
+        Compositor_DisconnectedFromRuntime = 8006,        //!< Compositor was running and is no longer responding.
+        Compositor_ErrorCreatingTexturesOnDevice = 8008,  //!< Failed to create shared textures for compositor.
+        Compositor_NoEyeSpecifiedForSubmit = 8009,        //!< The supplied EFVR_Eye for submit is invalid (i.e. is Both or Neither).
+
+        //! Generic
+        UnknownError = 9000,  //!< Errors that are unknown or couldn't be classified. If possible, info will be logged about the nature of the issue.
     };
 
     //! Enum Corresponds to the order in which clients are composited
@@ -143,7 +168,6 @@ namespace Fove
     struct SFVR_BitmapImage
     {
         uint64_t timestamp = 0;
-        EFVR_ErrorCode error = EFVR_ErrorCode::Data_NoUpdate;
         EFVR_BitmapImageType type;
         std::vector<unsigned char> image;
     };
@@ -168,24 +192,24 @@ namespace Fove
         EFVR_HealthStatus PositionLEDs = EFVR_HealthStatus::Unknown;
         /*! The health status of the eye LEDs */
         EFVR_HealthStatus EyeLEDs = EFVR_HealthStatus::Unknown;
-
-        char reserved[40]; // consume these as we add more statuses
     };
 
     //! Struct Contains the version for the software
-    /*! Contains the version for the software (used for runtime and client versions */
+    /*! Contains the version for the software (both runtime and client versions).
+        A negative value in any int field represents unknown.
+    */
     struct SFVR_Versions
     {
-        int clientMajor = 0;
-        int clientMinor = 0;
-        int clientBuild = 0;
-        int clientProtocol = 0;
-        int runtimeMajor = 0;
-        int runtimeMinor = 0;
-        int runtimeBuild = 0;
-        int firmware = 0;
-        int maxFirmware = 0;
-        int minFirmware = 0;
+        int clientMajor = -1;
+        int clientMinor = -1;
+        int clientBuild = -1;
+        int clientProtocol = -1;
+        int runtimeMajor = -1;
+        int runtimeMinor = -1;
+        int runtimeBuild = -1;
+        int firmware = -1;
+        int maxFirmware = -1;
+        int minFirmware = -1;
         bool tooOldHeadsetConnected = false;
     };
 
@@ -323,7 +347,7 @@ namespace Fove
     struct SFVR_Pose
     {
         /*! error: if true => the rest of the data is in an unknown state. */
-        EFVR_ErrorCode error = EFVR_ErrorCode::None;
+        FVR_DEPRECATED(EFVR_ErrorCode error, "SFVR_Pose.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the coord captured is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the pose was captured, in milliseconds since an unspecified epoch */
@@ -342,13 +366,14 @@ namespace Fove
         SFVR_Vec3 acceleration;
     };
 
-    //! Struct to represent the vector which eyes converge at
-    /*! Stores the Gaze vector which both eyes converge at
+    //! Struct to represent a unit vector out from the eye center along which that eye is looking
+    /*! The vector value is in eye-relative coordinates, meaning that it is not affected by the position
+     * or orientation of the HMD, but rather represents the absolute orientation of the eye's gaze.
     */
     struct SFVR_GazeVector
     {
         /*! error: if true => the rest of the data is in an unknown state. */
-        EFVR_ErrorCode error = EFVR_ErrorCode::None;
+        FVR_DEPRECATED(EFVR_ErrorCode error = EFVR_ErrorCode::None, "SFVR_GazeVector.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the gaze data was captured, in milliseconds since an unspecified epoch */
@@ -361,7 +386,7 @@ namespace Fove
     struct SFVR_GazeConvergenceData
     {
         /*! error: if true => the rest of the data is in an unknown state. */
-        EFVR_ErrorCode error = EFVR_ErrorCode::None;
+        FVR_DEPRECATED(EFVR_ErrorCode error = EFVR_ErrorCode::None, "SFVR_GazeConvergenceData.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the convergence data was captured, in milliseconds since an unspecified epoch */
@@ -398,29 +423,17 @@ namespace Fove
         float mat[3][4] = {};
     };
 
-    //! Enum with errors pertaining to Compositor
-    /*! Errors pertaining to Compositor */
-    enum class EFVR_CompositorError
+    //! Deprecated enum for compositor errors, which are now part of the EFVR_ErrorCode struct
+    FVR_DEPRECATED(typedef EFVR_ErrorCode EFVR_CompositorError, "EFVR_CompositorError is deprecated, use EFVR_ErrorCode");
+
+    //! Structure holding information about projection fustum planes. Values are given for a depth of 1 so that it's
+    //! easy to multiply them by your near clipping plan, for example, to get the correct values for your use.
+    struct SFVR_ProjectionParams
     {
-        None = 0, /*!< No Error */
-
-        UnableToCreateDeviceAndContext = 100, /*!< Compositor was unable to initialize its backend component. */
-        UnableToUseTexture = 101,             /*!< Compositor was unable to use the given texture (likely due to mismatched client and data types or an incompatible format). */
-        DeviceMismatch = 102,                 /*!< Compositor was unable to match its device to the texture's, either because of multiple GPUs or a failure to get the device from the texture. */
-        IncompatibleCompositorVersion = 103,  /*!< Compositor client is not compatible with the currently running compositor. */
-
-        UnableToFindRuntime = 200,            /*!< Compositor isn't running or isn't responding. */
-        RuntimeAlreadyClaimed = 201,          /*!< Deprecated */
-        DisconnectedFromRuntime = 202,        /*!< Compositor was running and is no longer responding. */
-
-        ErrorCreatingShaders = 300,           /*!< Deprecated */
-        ErrorCreatingTexturesOnDevice = 301,  /*!< Failed to create shared textures for compositor. */
-
-        NoEyeSpecifiedForSubmit = 400,        /*!< The supplied EFVR_Eye for submit is invalid (i.e. is Both or Neither). */
-
-        InvalidValue = 500,                   /*!< Currently unused, maybe utilized in the future. */
-
-        UnknownError = 99999,                 /*!< Misc. errors otherwise unhandled. */
+        float left   = -1;
+        float right  =  1;
+        float top    =  1;
+        float bottom = -1;
     };
 
     //! enum for type of Graphics API
@@ -429,9 +442,9 @@ namespace Fove
     */
     enum class EFVR_GraphicsAPI
     {
-        DirectX = 0, /*!< Good old Windows DirectX API */
-        OpenGL = 1,  /*!< OpenGL not implemented */
-        Vulkan = 2   /*!< Vulcan not implemented */
+        DirectX = 0, /*!< DirectX (Windows only)   */
+        OpenGL = 1,  /*!< OpenGL (not implemented) */
+        Vulkan = 2   /*!< Vulcan (not implemented) */
     };
 
     //! Enum to represent the Color space for a given texture
@@ -456,12 +469,10 @@ namespace Fove
 
     //! Struct used to define the settings for a compositor client.
     /*! Structure used to define the settings for a compositor client.*/
-    struct SFVR_ClientInfo
+    struct SFVR_CompositorLayerCreateInfo
     {
         //! The type (layer) upon which the client will draw.
         EFVR_ClientType type = EFVR_ClientType::Base;
-        //! The graphics API the client will use.
-        EFVR_GraphicsAPI api = EFVR_GraphicsAPI::DirectX;
 
         //! Setting to disable timewarp, e.g. if an overlay client is operating in screen space.
         bool disableTimeWarp = false;
@@ -473,19 +484,39 @@ namespace Fove
         bool disableDistortion = false;
     };
 
+    // Deprecated older name for SFVR_CompositorLayerCreateInfo
+    FVR_DEPRECATED(typedef SFVR_CompositorLayerCreateInfo SFVR_ClientInfo, "SFVR_ClientInfo is deprecated, use SFVR_CompositorLayerCreateInfo");
+
+    //! Struct used to store information about an existing compositor layer (after it is created)
+    /*! This exists primarily for future expandability. */
+    struct SFVR_CompositorLayer
+    {
+        //! Uniquely identifies a layer created within an IFVRCompositor object.
+        int layerId = 0;
+
+        /*! The optimal resolution for a submitted buffer on this layer (for a single eye).
+            Clients are allowed to submit buffers of other resolutions.
+            In particular, clients can use a lower resolution buffer to reduce their rendering overhead.
+        */
+        SFVR_Vec2i idealResolutionPerEye;
+    };
+
     //! Union used by compositor clients to pass textures.
     /*! Texture union used by compositor clients to pass textures. */
     union UFVR_CompositorTexture
     {
         //! Texture pointer
-        void* pTexture;
+        void* pTexture = nullptr;
         //! Set the absolute maximum size of this union.
         uint8_t reserved__[64];
 
-        /*! Initialize the Union member variables
+        //! Default constructor
+        UFVR_CompositorTexture() = default;
+
+        /*! Constructor to initialize the union member variables
             \param pTex Texture pointer used to render texture
         */
-        UFVR_CompositorTexture(void *pTex) : pTexture(pTex) {}
+        explicit UFVR_CompositorTexture(void *pTex) : pTexture(pTex) {}
     };
 
     //! Struct used by the Compositor to setup texture
@@ -494,11 +525,14 @@ namespace Fove
     struct SFVR_CompositorTexture
     {
         //! Texture Pointer
-        UFVR_CompositorTexture texture = { 0 };
+        UFVR_CompositorTexture texture;
         //! Colorspace of the texture
-        EFVR_ColorSpace colorSpace;
+        EFVR_ColorSpace colorSpace = EFVR_ColorSpace::Auto;
 
-        /*! Initialize the Struct member variables
+        //! Default Constructor
+        SFVR_CompositorTexture() {}
+
+        /*! Constructor to initialize the struct member variables
             \param pTexture Texture pointer used to render texture
             \param cs       Color space of the texture
         */
@@ -515,5 +549,35 @@ namespace Fove
         float right = 0;
         float bottom = 0;
         ///@}
+    };
+
+    //! Struct used to conglomerate the texture settings for a single eye, when submitting a given layer.
+    struct SFVR_CompositorLayerEyeSubmitInfo
+    {
+        //! Texture to submit for this eye
+        //! This may be null as long as the other submitted eye's texture isn't (thus allowing each eye to be submitted separately)
+        SFVR_CompositorTexture texInfo;
+
+        //! The portion of the texture that is used to represent the eye (Eg. half of it if the texture contains both eyes)
+        SFVR_TextureBounds bounds;
+    };
+
+    //! Struct used to conglomerate the texture settings when submitting a given layer.
+    struct SFVR_CompositorLayerSubmitInfo
+    {
+        int layerId = 0;
+        SFVR_Pose pose;
+        SFVR_CompositorLayerEyeSubmitInfo left;
+        SFVR_CompositorLayerEyeSubmitInfo right;
+    };
+
+    //! Struct used to identify a GPU adapter.
+    struct SFVR_AdapterId
+    {
+#ifdef _WIN32
+        // On windows, this forms a LUID structure
+        uint32_t lowPart = 0;
+        int32_t  highPart = 0;
+#endif
     };
 }

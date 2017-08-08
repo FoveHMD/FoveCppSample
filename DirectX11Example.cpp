@@ -127,14 +127,21 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	if (!compositor)
 		throw runtime_error("Unable to create compositor connection");
 
-	// Get the rendering resolution from the compositor
-	const Fove::SFVR_Vec2i singleEyeResolution = GetSingleEyeResolutionWithTimeout(*compositor);
+	// Create a compositor layer, which we will use for submission
+	const auto createLayer = [&]() -> unique_ptr<Fove::SFVR_CompositorLayer>
+	{
+		Fove::SFVR_CompositorLayer layer;
+		const Fove::EFVR_ErrorCode error = compositor->CreateLayer(Fove::SFVR_CompositorLayerCreateInfo(), &layer);
+		return error == Fove::EFVR_ErrorCode::None ? make_unique<Fove::SFVR_CompositorLayer>(Fove::SFVR_CompositorLayer(layer)) : nullptr;
+	};
+	unique_ptr<const Fove::SFVR_CompositorLayer> layer = createLayer();
+	Fove::SFVR_Vec2i renderSurfaceSize = layer ? layer->idealResolutionPerEye : Fove::SFVR_Vec2i{ 1024, 1024 };
 
-	// Setup
+	// Create a window and setup an DirectX device associated with it
 	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "Five DirectX11 Example");
 	CComPtr<ID3D11DeviceContext> deviceContext;
 	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext);
-	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, singleEyeResolution);
+	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, renderSurfaceSize);
 
 	// Get back buffer
 	CComPtr<ID3D11Texture2D> backBuffer;
@@ -151,8 +158,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Create the depth buffer
 	D3D11_TEXTURE2D_DESC descDepth;
 	ZeroMemory(&descDepth, sizeof(descDepth));
-	descDepth.Width = singleEyeResolution.x * 2;
-	descDepth.Height = singleEyeResolution.y;
+	descDepth.Width = renderSurfaceSize.x * 2;
+	descDepth.Height = renderSurfaceSize.y;
 	descDepth.MipLevels = 0;
 	descDepth.ArraySize = 1;
 	descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -194,14 +201,14 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 	// Setup the right and left viewport
 	D3D11_VIEWPORT leftViewport;
-	leftViewport.Width = (FLOAT)singleEyeResolution.x;
-	leftViewport.Height = (FLOAT)singleEyeResolution.y;
+	leftViewport.Width = (FLOAT)renderSurfaceSize.x;
+	leftViewport.Height = (FLOAT)renderSurfaceSize.y;
 	leftViewport.MinDepth = 0.0f;
 	leftViewport.MaxDepth = 1.0f;
 	leftViewport.TopLeftX = 0;
 	leftViewport.TopLeftY = 0;
 	D3D11_VIEWPORT rightViewport = leftViewport;
-	rightViewport.TopLeftX = (FLOAT)singleEyeResolution.x;
+	rightViewport.TopLeftX = (FLOAT)renderSurfaceSize.x;
 
 	// Create the vertex shader
 	CComPtr<ID3D11VertexShader> vertexShader;
@@ -267,9 +274,26 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			if (!FlushWindowEvents(nativeWindow))
 				break;
 
+			// Create layer if we have none
+			// This allows us to connect to the compositor once it launches
+			if (!layer)
+			{
+				// Check if the compositor is ready first. Othewise we will hang for a while when trying to create a layer
+				bool isReady = false;
+				compositor->IsReady(&isReady); // Error is ignored here - in the case of an error our initial value of false will be kept
+				if (isReady)
+				{
+					if ((layer = createLayer()))
+					{
+						// Todo: resize rendering surface
+					}
+				}
+			}
+
 			// Compute selection based on eye gaze
-			const Fove::SFVR_GazeConvergenceData convergence = headset->GetGazeConvergence();
-			if (Fove::EFVR_ErrorCode::None == convergence.error) {
+			Fove::SFVR_GazeConvergenceData convergence;
+			const Fove::EFVR_ErrorCode gazeError = headset->GetGazeConvergence(&convergence);
+			if (Fove::EFVR_ErrorCode::None == gazeError) {
 				// Get the eye ray. The FOVE SDK will return the better of the two eye rays here
 				// For now we rely exclusively on the ray. In the future, as convergence distance
 				// reporting becomes more accurate, we can use it to distinguish ray-hits by distance
@@ -311,15 +335,15 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// We move directly on to rendering after this, the update phase happens before hand
 		// This is to ensure the quickest possible turnaround time from being signaled to presenting a frame,
 		// such that we reduce the risk of missing a frame due to time spent during update
-		// Note: if the comositor is not running, this will return immediately, and we will run at maximum frame rate
-		Fove::SFVR_Pose pose = compositor->WaitForRenderPose();
-		if (Fove::EFVR_ErrorCode::None != pose.error) {
-			// Use the default pose if we can't fetch the pose
-			// This allows us to keep rendering a default posee (eg. while service/compositor not running)
-			pose = {};
+		Fove::SFVR_Pose pose;
+		const Fove::EFVR_ErrorCode poseError = compositor->WaitForRenderPose(&pose);
+		if (Fove::EFVR_ErrorCode::None != poseError) {
+			// If there was an error waiting, it's possible that WaitForRenderPose returned immediately
+			// Sleep a little bit to prevent us from rendering at maximum framerate and eating massive resources/battery
+			this_thread::sleep_for(10ms);
 		}
 
-		// Render
+		// Render the scene
 		{
 			// Clear the back buffer
 			const float color[] = { 0.3f, 0.3f, 0.8f, 0.3f };
@@ -339,35 +363,44 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Get distance between eyes to shift camera for stereo effect
 			float halfIOD = 0.064f;
-			headset->GetIOD(halfIOD); // Error is ignored, it will use the default value if there's an error
-
-			// Render left eye
-			Fove::SFVR_Matrix44 leftEyeProj;
-			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Left, 0.01f, 1000.0f, &leftEyeProj)) {
+			headset->GetIOD(&halfIOD); // Error is ignored, it will use the default value if there's an error
+			halfIOD *= 0.5f;
+			
+			// Fetch the projection matrices
+			Fove::SFVR_Matrix44 lProjection, rProjection;
+			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatricesLH(0.01f, 1000.0f, &lProjection, &rProjection))
+			{
+				// Render left eye
 				deviceContext->RSSetViewports(1, &leftViewport);
-				RenderScene(*deviceContext, *constantBuffer, Transpose(leftEyeProj), TranslationMatrix(halfIOD, 0, 0) * modelview, selection);
-			}
+				RenderScene(*deviceContext, *constantBuffer, Transpose(lProjection), TranslationMatrix(halfIOD, 0, 0) * modelview, selection);
 
-			// Render right eye
-			Fove::SFVR_Matrix44 rightEyeProj;
-			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatrixLH(Fove::EFVR_Eye::Right, 0.01f, 1000.0f, &rightEyeProj)) {
+				// Render right eye
 				deviceContext->RSSetViewports(1, &rightViewport);
-				RenderScene(*deviceContext, *constantBuffer, Transpose(rightEyeProj), TranslationMatrix(-halfIOD, 0, 0) * modelview, selection);
+				RenderScene(*deviceContext, *constantBuffer, Transpose(rProjection), TranslationMatrix(-halfIOD, 0, 0) * modelview, selection);
 			}
 		}
 
 		// Present rendered results to compositor
+		if (layer)
 		{
 			Fove::SFVR_CompositorTexture tex(backBuffer);
+			Fove::SFVR_CompositorLayerSubmitInfo submitInfo;
+			submitInfo.layerId = layer->layerId;
+			submitInfo.pose = pose;
+			submitInfo.left.texInfo = tex;
+			submitInfo.right.texInfo = tex;
+
 			Fove::SFVR_TextureBounds bounds;
 			bounds.top = 0;
 			bounds.bottom = 1;
 			bounds.left = 0;
 			bounds.right = 0.5f;
-			compositor->Submit(Fove::EFVR_Eye::Left, tex, bounds, pose);
+			submitInfo.left.bounds = bounds;
 			bounds.left = 0.5f;
 			bounds.right = 1;
-			compositor->Submit(Fove::EFVR_Eye::Right, tex, bounds, pose);
+			submitInfo.right.bounds = bounds;
+
+			compositor->Submit(submitInfo); // Error ignored, just continue rendering to the window when we're disconnected
 		}
 
 		// Present the rendered image to the screen

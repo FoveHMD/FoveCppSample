@@ -4,6 +4,27 @@ Documentation is available on our forum at http://forum.getfove.com/ and is also
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
 
+v0.13.0
+
+Runtime:
+- Configuration tool is rebranded to Debug tool
+- Korean translation
+- New open menu in FOVE debug tool for quick access to the config file and logs
+- Exe icons for the the Debug Tool and Compositor
+- FOVE tray window is draggable
+- Added support for upcoming FOVE camera
+- Automatic gyro calibration from position tracking
+- Fixed bug where calibration calibration dot stops moving
+- Suppressed jitter of gaze vector
+
+SDK:
+- Major API update
+- All IFVRHeadset and IFVRCompositor functions return errors (the previous versions are deprecated)
+- IFVRCompositor interface updated to support multiple layers per client (all clients should upgrade)
+- EFVR_CompositorError merged into EFVR_ErrorCode enum
+- Gaze functions (Eg. GetGazeVector) can now return data for both eyes w/ a single call
+- D3D compiler DLL is no longer required to be shipped by clients to work on Win7
+
 v0.12.1
 
 - Added filtering to Config Tool logs

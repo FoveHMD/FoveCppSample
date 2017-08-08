@@ -11,24 +11,6 @@
 
 using namespace std;
 
-Fove::SFVR_Vec2i GetSingleEyeResolutionWithTimeout(const Fove::IFVRCompositor& compositor, const chrono::milliseconds timeout, const Fove::SFVR_Vec2i defaultValue)
-{
-	const auto start = chrono::high_resolution_clock::now();
-
-	do {
-		// Query compositor for resolution (it will return 0,0 if the info is not yet available)
-		const Fove::SFVR_Vec2i res = compositor.GetSingleEyeResolution();
-		if (res.x > 0 && res.y > 0)
-			return res;
-
-		// Sleep a tiny bit before the next query
-		this_thread::yield();
-
-	} while (chrono::high_resolution_clock::now() - start < timeout);
-
-	return defaultValue;
-}
-
 string ToUtf8(const wstring& utf16)
 {
 	return wstring_convert<codecvt_utf8_utf16<wchar_t>, wchar_t>().to_bytes(utf16);
