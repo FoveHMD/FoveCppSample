@@ -571,7 +571,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 					glViewport(isLeft ? 0 : renderSurfaceSize.x, 0, renderSurfaceSize.x, renderSurfaceSize.y);
 
 					// Update clip matrix
-					Fove::SFVR_Matrix44 mvp = Transpose(isLeft ? lProjection : rProjection) * (TranslationMatrix(-halfIOD, 0, 0) * modelview);
+					Fove::SFVR_Matrix44 mvp = Transpose(isLeft ? lProjection : rProjection) * (TranslationMatrix(isLeft ? halfIOD : -halfIOD, 0, 0) * modelview);
 					GlCall(glUniformMatrix4fv, mvpLoc, 1, true, (const float*)mvp.mat);
 
 					// Issue draw command
