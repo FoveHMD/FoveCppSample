@@ -19,7 +19,7 @@ int main() try {
 	// This program never exits (except possibly by exception), but RAII should always be used for safety
 	const unique_ptr<Fove::IFVRHeadset> headset{ Fove::GetFVRHeadset() };
 
-	// Initialiase the headset
+	// Initialise the headset
 	// This allows us to declare what capabilities we would like enabled
 	// Doing so may enable hardware or software, and thus consume resources, so it's important to only use capabilities that you know you need
 	CheckError(headset->Initialise(Fove::EFVR_ClientCapabilities::Gaze), "Initialise");

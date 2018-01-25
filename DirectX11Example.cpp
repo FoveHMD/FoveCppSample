@@ -138,7 +138,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	Fove::SFVR_Vec2i renderSurfaceSize = layer ? layer->idealResolutionPerEye : Fove::SFVR_Vec2i{ 1024, 1024 };
 
 	// Create a window and setup an DirectX device associated with it
-	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "Five DirectX11 Example");
+	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE DirectX11 Example");
 	CComPtr<ID3D11DeviceContext> deviceContext;
 	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext);
 	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, renderSurfaceSize);

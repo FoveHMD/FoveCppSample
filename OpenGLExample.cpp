@@ -1,4 +1,4 @@
-// FOVE DirextX11 Example
+// FOVE OpenGL Example
 // This shows how to display content in a FOVE HMD via the FOVE SDK & OpenGL
 
 #include "IFVRCompositor.h"
@@ -164,7 +164,7 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 		throw runtime_error("Failed to link shader: " + log);
 	}
 
-	// Detatch the shaders are a succesful link (optional)
+	// Detach the shaders after a successful link (optional)
 	GlCall(glDetachShader, program, vertShader);
 	GlCall(glDetachShader, program, fragShader);
 
@@ -324,7 +324,7 @@ RenderSurface GenerateRenderSurface(const Fove::SFVR_Vec2i singleEyeResolution)
 	return ret;
 }
 
-// Platform-independant main program entry point and loop
+// Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
 void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Connect to headset
@@ -351,7 +351,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	Fove::SFVR_Vec2i renderSurfaceSize = layer ? layer->idealResolutionPerEye : Fove::SFVR_Vec2i{ 1024, 1024 };
 
 	// Create a window and setup an OpenGL associated with it
-	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "Fove OpenGL Example");
+	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE OpenGL Example");
 	NativeOpenGLContext nativeOpenGLContext = CreateOpenGLContext(nativeWindow);
 
 	// Set up a framebuffer which we will render to
@@ -460,7 +460,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			// This allows us to connect to the compositor once it launches
 			if (!layer)
 			{
-				// Check if the compositor is ready first. Othewise we will hang for a while when trying to create a layer
+				// Check if the compositor is ready first. Otherwise we will hang for a while when trying to create a layer
 				bool isReady = false;
 				compositor->IsReady(&isReady); // Error is ignored here - in the case of an error our initial value of false will be kept
 				if (isReady)
@@ -481,7 +481,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 				// reporting becomes more accurate, we can use it to distinguish ray-hits by distance
 				Fove::SFVR_Ray ray = convergence.ray;
 
-				// Since the convergence ray does not include the headset orienation,
+				// Since the convergence ray does not include the headset orientation,
 				// or any other transforms we made such as the player height transform,
 				// we need to adjust it by the camera matrix from last frame.
 				// Since the last-frame cameraMatrix represents what is actually on screen,
@@ -616,7 +616,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			RenderSurface::D3DSurfaceLock lock(renderSurface.glDevice.get(), renderSurface.glRenderBuffer.get());
 #endif
 
-			// Bind the default framebufer (index 0, that of the window)
+			// Bind the default framebuffer (index 0, that of the window)
 			// No glClear is needed since we will fill the whole view
 			GlCall(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 
