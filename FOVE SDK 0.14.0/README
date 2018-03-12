@@ -4,14 +4,55 @@ Documentation is available on our forum at http://forum.getfove.com/ and is also
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
 
+v0.14.0
+
+- New Eye Tracking system: continous drift compensation, accuracy improvements, and convergence vector rework.
+- Gaze convergence depth and pupilometry now available.
+- Calibration reduced to 5 points.
+- Improved overall runtime stability.
+- Fixed exit hangs in Debug Tool and FOVE Clients.
+- DirectX 11.4 features.
+- Single Eye Tracking temporarily disabled.
+- Re-organized buttons in Debug Tool.
+- Companion can now be started/stopped from the Debug Tool.
+- Mirror Client can now be launched from the Debug Tool.
+- Mirror Client now shows eye gaze points (Keydown 'e').
+
+API Changes:
+
+FoveTypes.h
+
+- Removed EFVR_BitmapImageType class and SFVR_BitmapImage struct.
+- Removed Accuracy field from the SFVR_GazeConvergenceData struct.
+- Added Attention and PupilDilation fields to the SFVR_GazeConvergenceData struct.
+
+IFVRHeadset.h
+
+- Added GetGazeVectors2D() function.
+
+Known Issues:
+
+Gaze points in the mirror client are a bit off from where the actual reported gaze is.
+Sometimes the client will hang when being closed. If you find a solid repro for this, let us know.
+
+v0.13.2
+
+- Made C# SFVR constructors public in FOVE Client DLL.
+- Fixed a bug that causes occasional crashes in the Unity Plugin.
+
+v0.13.1
+
+- Fixed a bug where firmware update cannot find dfu temp file due to filesystem permissions.
+- Added configuration option to disable software update notifications.
+
 v0.13.0
 
 Runtime:
-- Configuration tool is rebranded to Debug tool
+- Configuration Tool is rebranded to Debug Tool
 - Korean translation
 - New open menu in FOVE debug tool for quick access to the config file and logs
-- Exe icons for the the Debug Tool and Compositor
-- FOVE tray window is draggable
+- Exe icons for the Debug Tool and Compositor
+- FOVE Status Bar window is now draggable
 - Added support for upcoming FOVE camera
 - Automatic gyro calibration from position tracking
 - Fixed bug where calibration calibration dot stops moving

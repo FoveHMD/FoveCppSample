@@ -15,7 +15,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <vector>
 
 namespace Fove
 {
@@ -47,31 +46,31 @@ namespace Fove
     /// @endcond
 
     //! An enum of error codes that the system may return
-    enum class EFVR_ErrorCode
-    {
-        None = 0,
+	enum class EFVR_ErrorCode
+	{
+		None = 0,
 
-        //! Connection Errors
-        Connection_General = 1,
-        Connect_NotConnected = 7,
-        Connect_ServerUnreachable = 2,
-        Connect_RegisterFailed = 3,
-        Connect_DeregisterFailed = 8,
-        Connect_RuntimeVersionTooOld = 4,
-        Connect_HeartbeatNoReply = 5,
-        Connect_ClientVersionTooOld = 6,
+		//! Connection Errors
+		Connection_General = 1,
+		Connect_NotConnected = 7,
+		Connect_ServerUnreachable = 2,
+		Connect_RegisterFailed = 3,
+		Connect_DeregisterFailed = 8,
+		Connect_RuntimeVersionTooOld = 4,
+		Connect_HeartbeatNoReply = 5,
+		Connect_ClientVersionTooOld = 6,
 
-        //! API usage errors
-        API_General = 100,                 //!< There was an error in the usage of the API other than one of the others in this section
-        API_InitNotCalled = 101,           //!< A function that should only be called after Initialise() was invoked before/without Initialise()
-        API_InitAlreadyCalled = 102,       //!< A function that should only be called before Initialise() was invoked, or Initialise() was invoked multiple times
-        API_InvalidArgument = 103,         //!< An argument passed to an API function was invalid for a reason other than one of the below reasons
-        API_NotRegistered = 104,           //!< Data was queried without first registering for that data
-        API_NullInPointer = 110,           //!< An input argument passed to an API function was invalid for a reason other than the below reasons
-        API_InvalidEnumValue = 111,        //!< An enum argument passed to an API function was invalid
-        API_NullOutPointersOnly = 120,     //!< All output arguments were null on a function that requires at least one output (all getters that have no side effects)
-        API_OverlappingOutPointers = 121,  //!< Two (or more) output parameters passed to an API function overlap in memory. Each output parameter should be a unique, separate object.
-        API_CompositorNotSwapped = 122,    //!< This comes from submitting without calling WaitForRenderPose after a complete submit.
+		//! API usage errors
+		API_General = 100,                 //!< There was an error in the usage of the API other than one of the others in this section
+		API_InitNotCalled = 101,           //!< A function that should only be called after Initialise() was invoked before/without Initialise()
+		API_InitAlreadyCalled = 102,       //!< A function that should only be called before Initialise() was invoked, or Initialise() was invoked multiple times
+		API_InvalidArgument = 103,         //!< An argument passed to an API function was invalid for a reason other than one of the below reasons
+		API_NotRegistered = 104,           //!< Data was queried without first registering for that data
+		API_NullInPointer = 110,           //!< An input argument passed to an API function was invalid for a reason other than the below reasons
+		API_InvalidEnumValue = 111,        //!< An enum argument passed to an API function was invalid
+		API_NullOutPointersOnly = 120,     //!< All output arguments were null on a function that requires at least one output (all getters that have no side effects)
+		API_OverlappingOutPointers = 121,  //!< Two (or more) output parameters passed to an API function overlap in memory. Each output parameter should be a unique, separate object.
+		API_CompositorNotSwapped = 122,    //!< This comes from submitting without calling WaitForRenderPose after a complete submit.
 
         //! Data Errors
         Data_General = 1000,
@@ -157,19 +156,6 @@ namespace Fove
         Sleeping,
         Disconnected,
         Error,
-    };
-
-    enum class EFVR_BitmapImageType
-    {
-        StereoEye = 0x00,
-        Position = 0x01
-    };
-
-    struct SFVR_BitmapImage
-    {
-        uint64_t timestamp = 0;
-        EFVR_BitmapImageType type;
-        std::vector<unsigned char> image;
     };
 
     //! SFVR_SystemHealth
@@ -346,8 +332,6 @@ namespace Fove
     */
     struct SFVR_Pose
     {
-        /*! error: if true => the rest of the data is in an unknown state. */
-        FVR_DEPRECATED(EFVR_ErrorCode error, "SFVR_Pose.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the coord captured is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the pose was captured, in milliseconds since an unspecified epoch */
@@ -372,8 +356,6 @@ namespace Fove
     */
     struct SFVR_GazeVector
     {
-        /*! error: if true => the rest of the data is in an unknown state. */
-        FVR_DEPRECATED(EFVR_ErrorCode error = EFVR_ErrorCode::None, "SFVR_GazeVector.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the gaze data was captured, in milliseconds since an unspecified epoch */
@@ -385,8 +367,6 @@ namespace Fove
     /*! The vector (from the center of the player's head in world space) that can be used to approximate the point that the user is looking at. */
     struct SFVR_GazeConvergenceData
     {
-        /*! error: if true => the rest of the data is in an unknown state. */
-        FVR_DEPRECATED(EFVR_ErrorCode error = EFVR_ErrorCode::None, "SFVR_GazeConvergenceData.error is deprecated, please use the return value of the function where you got it.");
         /*! Incremental counter which tells if the convergence data is a fresh value at a given frame */
         std::uint64_t id = 0;
         /*! The time at which the convergence data was captured, in milliseconds since an unspecified epoch */
@@ -395,8 +375,10 @@ namespace Fove
         SFVR_Ray ray;
         /*! The expected distance to the convergence point, Range: 0 to Infinity*/
         float distance = 0.f;
-        /*! The accuracy of the convergence point, Range: 0 to +1 */
-        float accuracy = 0.f;
+        /*! Pupil dilation is given as a ratio relative to a baseline. 1 means average. Range: 0 to Infinity */
+        float pupilDilation = 0.f;
+        /*! True if the user is looking at something (fixation or pursuit), rather than saccading between objects. This could be used to suppress eye input during large eye motions. */
+        bool attention = false;
     };
 
     //! Enum to identify which eye is being used.
@@ -422,9 +404,6 @@ namespace Fove
     {
         float mat[3][4] = {};
     };
-
-    //! Deprecated enum for compositor errors, which are now part of the EFVR_ErrorCode struct
-    FVR_DEPRECATED(typedef EFVR_ErrorCode EFVR_CompositorError, "EFVR_CompositorError is deprecated, use EFVR_ErrorCode");
 
     //! Structure holding information about projection fustum planes. Values are given for a depth of 1 so that it's
     //! easy to multiply them by your near clipping plan, for example, to get the correct values for your use.
@@ -483,9 +462,6 @@ namespace Fove
         //! Setting to disable a distortion pass, e.g. for a diagnostic client, or a client intending to do its own distortion.
         bool disableDistortion = false;
     };
-
-    // Deprecated older name for SFVR_CompositorLayerCreateInfo
-    FVR_DEPRECATED(typedef SFVR_CompositorLayerCreateInfo SFVR_ClientInfo, "SFVR_ClientInfo is deprecated, use SFVR_CompositorLayerCreateInfo");
 
     //! Struct used to store information about an existing compositor layer (after it is created)
     /*! This exists primarily for future expandability. */

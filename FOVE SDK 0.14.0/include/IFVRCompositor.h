@@ -58,37 +58,6 @@ namespace Fove
 
         //! Override delete to ensure that deallocation happens within the same dll as GetFVRCompositor's allocation
         FVR_EXPORT void operator delete(void* ptr);
-
-        // Below are deprecated functions. Each has a non-deprecated equivalent above that existing code should use instead.
-        // These will be removed in a future version.
-
-        FVR_DEPRECATED(virtual SFVR_Pose WaitForRenderPose(),
-            "Please use the version which takes an SFVR_Pose pointer and returns an EFVR_ErrorCode.") = 0;
-
-        FVR_DEPRECATED(virtual SFVR_Pose GetLastRenderPose(),
-            "Please use the version which takes an SFVR_Pose pointer and returns an EFVR_ErrorCode.") = 0;
-
-        FVR_DEPRECATED(virtual bool IsReady() const,
-            "Please use the version which takes a bool pointer and returns an EFVR_ErrorCode.") = 0;
-
-        FVR_DEPRECATED(virtual SFVR_Vec2i GetSingleEyeResolution() const,
-            "Please use the resolution passed in the SFVR_CompositorLayer struct returned by CreateLayer.") = 0;
-
-        //! Submit a frame to the compositor
-        /*! This function takes your feed from your game engine to the compositor for output
-            NOTE: If this client has more than one layer, this function will error. Use SubmitGroup instead.
-            NOTE: Frames will be sent synchronously when both left and right eyes have been submitted.
-            \param whichEye Defines for which eye the given texture is to be output
-            \param texInfo  The texture pointer and color space held by the struct
-            \param bounds   The bounds for the texture to be displayed
-            \param pose     The pose struct used for rendering this frame
-        */
-        FVR_DEPRECATED(virtual EFVR_ErrorCode Submit(
-            EFVR_Eye whichEye,
-            const SFVR_CompositorTexture &texInfo,
-            const SFVR_TextureBounds &bounds,
-            const SFVR_Pose &pose),
-            "This overload of Submit is deprecated. Please use one of the other submit functions using SFVR_CompositorLayerSubmitInfo.") = 0;
     };
 
     //! Creates an IFVRCompositor object
@@ -96,10 +65,4 @@ namespace Fove
         The caller is reponsible for deleting the returned pointer when finished, preferably via RAII, such as std::unique_ptr<IFVRCompositor>
     */
     FVR_EXPORT IFVRCompositor* GetFVRCompositor();
-
-    //! Creates an IFVRCompositor object and adds a layer
-    /*! This is for backwards compatibility purposes and will be removed in a future version
-    */
-    FVR_EXPORT FVR_DEPRECATED(IFVRCompositor* GetFVRCompositor(const SFVR_CompositorLayerCreateInfo&),
-        "GetFVRCompositor no longer takes an argument. Layers can be added CreateLayer");
 }
