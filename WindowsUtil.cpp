@@ -77,4 +77,5 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int cmdShow)
 	info.instance = instance;
 	info.cmdShow = cmdShow;
 	Main(info);
+	return 0;
 }
