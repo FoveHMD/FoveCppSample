@@ -4,6 +4,13 @@ Documentation is available on our forum at http://forum.getfove.com/ and is also
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
 
+v0.15.0
+
+- Compositor texture submission API has been updated to be more flexible. Source changes required when updating.
+- Added beta support for submitting OpenGL textures. Mileage may vary.
+- Added beta support for standing mode via a new standingPosition field.
+- Remove EFVR_ColorSpace, which was never implemented
+
 v0.14.0
 
 - New Eye Tracking system: continous drift compensation, accuracy improvements, and convergence vector rework.

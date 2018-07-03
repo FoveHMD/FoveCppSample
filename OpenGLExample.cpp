@@ -589,13 +589,13 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 #ifdef USE_DX_RENDER_BUFFER
 		// Present rendered results to compositor
 		if (layer && renderSurface.fboTextureD3D) {
-			const Fove::SFVR_CompositorTexture tex{ renderSurface.fboTextureD3D };
+			const Fove::SFVR_DX11Texture tex{ renderSurface.fboTextureD3D };
 
 			Fove::SFVR_CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layer->layerId;
 			submitInfo.pose = pose;
-			submitInfo.left.texInfo = tex;
-			submitInfo.right.texInfo = tex;
+			submitInfo.left.texInfo = &tex;
+			submitInfo.right.texInfo = &tex;
 
 			Fove::SFVR_TextureBounds bounds;
 			bounds.top = 0;

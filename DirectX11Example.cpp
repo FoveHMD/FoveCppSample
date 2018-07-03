@@ -377,12 +377,13 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 		// Present rendered results to compositor
 		if (layer) {
-			Fove::SFVR_CompositorTexture tex(backBuffer);
+			Fove::SFVR_DX11Texture tex{ backBuffer };
+
 			Fove::SFVR_CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layer->layerId;
 			submitInfo.pose = pose;
-			submitInfo.left.texInfo = tex;
-			submitInfo.right.texInfo = tex;
+			submitInfo.left.texInfo = &tex;
+			submitInfo.right.texInfo = &tex;
 
 			Fove::SFVR_TextureBounds bounds;
 			bounds.top = 0;
