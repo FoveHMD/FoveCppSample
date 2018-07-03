@@ -128,8 +128,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		throw runtime_error("Unable to create compositor connection");
 
 	// Create a compositor layer, which we will use for submission
-	const auto createLayer = [&]() -> unique_ptr<Fove::SFVR_CompositorLayer>
-	{
+	const auto createLayer = [&]() -> unique_ptr<Fove::SFVR_CompositorLayer> {
 		Fove::SFVR_CompositorLayer layer;
 		const Fove::EFVR_ErrorCode error = compositor->CreateLayer(Fove::SFVR_CompositorLayerCreateInfo(), &layer);
 		return error == Fove::EFVR_ErrorCode::None ? make_unique<Fove::SFVR_CompositorLayer>(Fove::SFVR_CompositorLayer(layer)) : nullptr;
@@ -276,15 +275,12 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Create layer if we have none
 			// This allows us to connect to the compositor once it launches
-			if (!layer)
-			{
+			if (!layer) {
 				// Check if the compositor is ready first. Othewise we will hang for a while when trying to create a layer
 				bool isReady = false;
 				compositor->IsReady(&isReady); // Error is ignored here - in the case of an error our initial value of false will be kept
-				if (isReady)
-				{
-					if ((layer = createLayer()))
-					{
+				if (isReady) {
+					if ((layer = createLayer())) {
 						// Todo: resize rendering surface
 					}
 				}
@@ -365,11 +361,10 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			float halfIOD = 0.064f;
 			headset->GetIOD(&halfIOD); // Error is ignored, it will use the default value if there's an error
 			halfIOD *= 0.5f;
-			
+
 			// Fetch the projection matrices
 			Fove::SFVR_Matrix44 lProjection, rProjection;
-			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatricesLH(0.01f, 1000.0f, &lProjection, &rProjection))
-			{
+			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatricesLH(0.01f, 1000.0f, &lProjection, &rProjection)) {
 				// Render left eye
 				deviceContext->RSSetViewports(1, &leftViewport);
 				RenderScene(*deviceContext, *constantBuffer, Transpose(lProjection), TranslationMatrix(halfIOD, 0, 0) * modelview, selection);
@@ -381,8 +376,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		}
 
 		// Present rendered results to compositor
-		if (layer)
-		{
+		if (layer) {
 			Fove::SFVR_CompositorTexture tex(backBuffer);
 			Fove::SFVR_CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layer->layerId;

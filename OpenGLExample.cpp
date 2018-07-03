@@ -341,8 +341,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		throw runtime_error("Unable to create compositor connection");
 
 	// Create a compositor layer, which we will use for submission
-	const auto createLayer = [&] () -> unique_ptr<Fove::SFVR_CompositorLayer>
-	{
+	const auto createLayer = [&]() -> unique_ptr<Fove::SFVR_CompositorLayer> {
 		Fove::SFVR_CompositorLayer layer;
 		const Fove::EFVR_ErrorCode error = compositor->CreateLayer(Fove::SFVR_CompositorLayerCreateInfo(), &layer);
 		return error == Fove::EFVR_ErrorCode::None ? make_unique<Fove::SFVR_CompositorLayer>(Fove::SFVR_CompositorLayer(layer)) : nullptr;
@@ -417,13 +416,19 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		GlResource<GlResourceType::Buffer> vbo;
 		vbo.CreateAndBind(GL_ARRAY_BUFFER);
 		float verts[] = {
-			-1.0f, -1.0f,
-			1.0f, 1.0f,
-			-1.0f, 1.0f,
+			-1.0f,
+			-1.0f,
+			1.0f,
+			1.0f,
+			-1.0f,
+			1.0f,
 
-			-1.0f, -1.0f,
-			1.0f, -1.0f,
-			1.0f, 1.0f,
+			-1.0f,
+			-1.0f,
+			1.0f,
+			-1.0f,
+			1.0f,
+			1.0f,
 		};
 		GlCall(glBufferData, GL_ARRAY_BUFFER, (GLsizei)sizeof(verts), verts, GL_STATIC_DRAW);
 		return vbo;
@@ -458,15 +463,12 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Create layer if we have none
 			// This allows us to connect to the compositor once it launches
-			if (!layer)
-			{
+			if (!layer) {
 				// Check if the compositor is ready first. Otherwise we will hang for a while when trying to create a layer
 				bool isReady = false;
 				compositor->IsReady(&isReady); // Error is ignored here - in the case of an error our initial value of false will be kept
-				if (isReady)
-				{
-					if ((layer = createLayer()))
-					{
+				if (isReady) {
+					if ((layer = createLayer())) {
 						// Todo: resize rendering surface
 					}
 				}
@@ -563,8 +565,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Fetch the projection matrices
 			Fove::SFVR_Matrix44 lProjection, rProjection;
-			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatricesLH(0.01f, 1000.0f, &lProjection, &rProjection))
-			{
+			if (Fove::EFVR_ErrorCode::None == headset->GetProjectionMatricesLH(0.01f, 1000.0f, &lProjection, &rProjection)) {
 				// Helper function to render the scene
 				const auto RenderScene = [&](bool isLeft) {
 					// Setup the viewport such that we only render to the right/left half of the texture
