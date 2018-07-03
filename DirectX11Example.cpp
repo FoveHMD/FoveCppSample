@@ -10,6 +10,7 @@
 #include <atlbase.h>
 #include <chrono>
 #include <d3d11_1.h>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -39,14 +40,56 @@ static_assert(sizeof(ConstantsBuffer) == sizeof(float) * 17, "invalid constant b
 
 // Link the needed DirectX libraries
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "DXGI.lib")
 
-CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext)
+CComPtr<IDXGIAdapter> FindAdapter(const Fove::SFVR_AdapterId& adapterId)
+{
+	// Get the DXGI Factor we need to enumerate adapters
+	CComPtr<IDXGIFactory> factory;
+	HRESULT err = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
+	if (FAILED(err) || !factory)
+		throw runtime_error("Unable to create IDXGIFactory1: " + HResultToString(err));
+
+	// Loop through existing adapters
+	for (UINT i = 0;; ++i) {
+		// Get next the adapter
+		CComPtr<IDXGIAdapter> adapter;
+		err = factory->EnumAdapters(i, &adapter);
+		if (err == DXGI_ERROR_NOT_FOUND)
+			throw runtime_error("Unable to find adapter: " + to_string(adapterId.highPart) + " " + to_string(adapterId.lowPart));
+		else if (FAILED(err) || !adapter)
+			throw runtime_error("Failed to enumerate adapters: " + HResultToString(err));
+
+		// Get info about this adapter
+		DXGI_ADAPTER_DESC adapterDesc{};
+		err = adapter->GetDesc(&adapterDesc);
+		if (FAILED(err))
+			throw runtime_error("Unable to get adapter description: " + HResultToString(err));
+
+		// If this is the right adapter, we are done
+		if (adapterDesc.AdapterLuid.HighPart == adapterId.highPart && adapterDesc.AdapterLuid.LowPart == adapterId.lowPart)
+			return adapter;
+	}
+}
+
+CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext, const CComPtr<IDXGIAdapter> adapterOrNull)
 {
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 	CComPtr<ID3D11Device> device;
-	const HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0 /*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &device, nullptr, &deviceContext);
+	const HRESULT err = D3D11CreateDevice(
+	    adapterOrNull,
+	    adapterOrNull ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
+	    nullptr,
+	    0, // D3D11_CREATE_DEVICE_DEBUG
+	    &featureLevel,
+	    1,
+	    D3D11_SDK_VERSION,
+	    &device,
+	    nullptr,
+	    &deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
 		throw runtime_error("Unable to create device: " + HResultToString(err));
+
 	return device;
 }
 
@@ -136,10 +179,24 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	unique_ptr<const Fove::SFVR_CompositorLayer> layer = createLayer();
 	Fove::SFVR_Vec2i renderSurfaceSize = layer ? layer->idealResolutionPerEye : Fove::SFVR_Vec2i{ 1024, 1024 };
 
+	// Get the adapter ID that the compositor is running on
+	// This is needed for multi-GPU machines
+	// The client *must* run on the same GPU as the compositor or texture submission will not work.
+	CComPtr<IDXGIAdapter> adapterOrNull;
+	{
+		Fove::SFVR_AdapterId adapterId;
+		const Fove::EFVR_ErrorCode adapterErr = compositor->GetAdapterId(&adapterId);
+		if (adapterErr == Fove::EFVR_ErrorCode::None)
+			adapterOrNull = FindAdapter(adapterId);
+		else
+			// If for some reason we can't get the adapter, just carry on and hope the default adapter works.
+			cerr << "Unable to get adapter id: " << EnumToUnderlyingValue(adapterErr) << endl;
+	}
+
 	// Create a window and setup an DirectX device associated with it
 	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE DirectX11 Example");
 	CComPtr<ID3D11DeviceContext> deviceContext;
-	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext);
+	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext, adapterOrNull);
 	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, renderSurfaceSize);
 
 	// Get back buffer
