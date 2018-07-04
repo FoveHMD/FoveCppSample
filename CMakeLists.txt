@@ -7,7 +7,6 @@ if("${CppExampleBuildInTree}")
 
 	# This allows building within the the FOVE SDK source checkout (for FOVE developers)
 	message(STATUS "Building FOVE CPP Examples in tree")
-	link_libraries(FoveClientStatic)
 
 else()
 
