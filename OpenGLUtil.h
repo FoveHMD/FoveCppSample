@@ -293,7 +293,10 @@ template <>
 struct GlResource<GlResourceType::Texture>::GlResourceInfo {
 	static constexpr auto GenFunc = &GenAdapter<&glGenTextures>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteTextures>;
-	static constexpr auto BindFunc = &glBindTexture;
+
+	// glBindTexture wrapped to avoid "Error C2131 expression did not evaluate to a constant" on MSVC2017 when using &glBindTexture
+	static void glBindWrapper(const GLenum target, const GLuint texture) { glBindTexture(target, texture); }
+	static constexpr auto BindFunc = &glBindWrapper;
 };
 
 template <>
