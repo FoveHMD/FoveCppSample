@@ -13,19 +13,6 @@
 #include <string>
 #include <thread>
 
-// The FOVE compositor currently only accepts DX11 buffers
-// So we will use a tiny bit of DX11 code to generate a buffer we can submit,
-// then use OpenGL to render to it using the NV_DX_interop/NV_DX_interop2 extensions
-#ifdef _WIN32
-#define USE_DX_RENDER_BUFFER
-#endif
-#ifdef USE_DX_RENDER_BUFFER
-#include "DXUtil.h"
-#include <atlbase.h>
-#include <d3d11_1.h>
-#pragma comment(lib, "d3d11.lib")
-#endif
-
 // Use std namespace for convenience
 using namespace std;
 
@@ -45,9 +32,6 @@ const char* const vertSrc = "#version 140\n"                                    
                             "void main(void)\n"                                              // Entry point of the shader
                             "{\n"                                                            //
                             "	gl_Position = mvp * vec4(pos.xyz, 1.0);\n"                   // Transform the position by the modelview matrix
-#ifdef USE_DX_RENDER_BUFFER                                                                  //
-                            "	FLIP_Y;\n"                                                   // Gets replaced with code to flip the output, see CreateShaderProgram()
-#endif                                                                                       //
                             "	float selection = max(0.0, 0.5 - abs(selection - pos.w));\n" // Compute whether this is part of a selected object
                             "	fragColor = color + vec3(selection);\n"                      // Color is simply passed through to frag shader
                             "}";
@@ -68,9 +52,6 @@ const char* const texCopyVertSrc = "#version 140\n"                           //
                                    "void main(void)\n"                        // Entry point of the shader
                                    "{\n"                                      //
                                    "	gl_Position = vec4(pos, 0.0, 1.0);\n" // Transform the position
-#ifdef USE_DX_RENDER_BUFFER                                                   //
-                                   "	FLIP_Y;\n"                            // Gets replaced with code to flip the output, see CreateShaderProgram()
-#endif                                                                        //
                                    "	uv = pos * 0.5 + 0.5;\n"              // Position goes from -1 to 1, but uvs go from 0 to 1
                                    "}";
 
@@ -122,16 +103,6 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 		return shader;
 	};
 
-#ifdef USE_DX_RENDER_BUFFER
-	// Replace code in the vertex shader to flip the image vertically
-	// This is because GL/DirectX textures use opposite y directions
-	string vertSrcStr = vertSrc;
-	const size_t pos = vertSrcStr.find("FLIP_Y");
-	if (pos != string::npos)
-		vertSrcStr.replace(pos, 6, "gl_Position.y *= -1");
-	vertSrc = vertSrcStr.c_str();
-#endif
-
 	// Create the vertex and fragment shader via the above helper function
 	const GlResource<GlResourceType::Shader> vertShader = Compile(vertSrc, GL_VERTEX_SHADER);
 	const GlResource<GlResourceType::Shader> fragShader = Compile(fragSrc, GL_FRAGMENT_SHADER);
@@ -175,37 +146,6 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 }
 
 struct RenderSurface {
-#ifdef USE_DX_RENDER_BUFFER
-	using GLDXHandle = unique_ptr<void, function<void(HANDLE)>>;
-
-	CComPtr<ID3D11Device> device;
-	CComPtr<ID3D11DeviceContext> deviceContext;
-	CComPtr<ID3D11Texture2D> fboTextureD3D;
-	GLDXHandle glDevice;
-	GLDXHandle glRenderBuffer;
-
-	// RAII helper to lock and unlock the DX render texture for use w/ OpenGL
-	struct D3DSurfaceLock {
-		D3DSurfaceLock(const HANDLE d, const HANDLE o)
-		    : device(d)
-		    , object(o)
-		{
-			if (device && object && !wglDXLockObjectsNV(device, 1, &object))
-				throw runtime_error("Unable to lock DX surface");
-		}
-
-		~D3DSurfaceLock() noexcept(false)
-		{
-			if (device && object && !wglDXUnlockObjectsNV(device, 1, &object))
-				throw runtime_error("Unable to unlock DX surface");
-		}
-
-	private:
-		const HANDLE device;
-		HANDLE object;
-	};
-#endif
-
 	GlResource<GlResourceType::RenderBuffer> depthBuffer; // Z-buffer
 	GlResource<GlResourceType::Texture> fboTexture;       // Color buffer that can be used as a texture
 	GlResource<GlResourceType::Fbo> fbo;                  // Framebuffer associated with the above two textures
@@ -214,87 +154,6 @@ struct RenderSurface {
 RenderSurface GenerateRenderSurface(const Fove::SFVR_Vec2i singleEyeResolution)
 {
 	RenderSurface ret;
-
-#ifdef USE_DX_RENDER_BUFFER
-	// Attempt to create a DX surface to render to
-	try {
-		// Check for the interop extension
-		// We check WGL_NV_DX_interop2 instead of WGL_NV_DX_interop, since the latter is only for D3D9
-		const string extensionName = "WGL_NV_DX_interop2";
-		const string extensionList = (const char*)GlCall(wglGetExtensionsStringEXT);
-		for (size_t pos = 0;; ++pos) {
-			pos = extensionList.find(extensionName, pos);
-			if (pos == string::npos)
-				throw runtime_error(extensionName + " extension not supported");
-
-			// Check that the extension name is not a subset of another name. It must be surrounded by spaces or end of string
-			const size_t endChar = pos + extensionName.size();
-			if ((pos == 0 || extensionList[pos - 1] == ' ') && (endChar >= extensionList.size() || extensionList[endChar] == ' '))
-				break;
-		}
-
-		// Create the device and context
-		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
-		HRESULT err = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0 /*D3D11_CREATE_DEVICE_DEBUG*/, &featureLevel, 1, D3D11_SDK_VERSION, &ret.device, nullptr, &ret.deviceContext);
-		if (FAILED(err) || !ret.device || !ret.deviceContext)
-			throw runtime_error("Unable to create device: " + HResultToString(err));
-
-		// Setup description for a D3D texture
-		D3D11_TEXTURE2D_DESC desc;
-		ZeroMemory(&desc, sizeof(desc));
-		desc.Width = singleEyeResolution.x * 2;
-		desc.Height = singleEyeResolution.y;
-		desc.MipLevels = 1;
-		desc.ArraySize = 1;
-		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		desc.SampleDesc.Count = 1;
-		desc.Usage = D3D11_USAGE_DEFAULT;
-		desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-		desc.CPUAccessFlags = 0;
-		desc.MiscFlags = 0;
-
-		// Create a D3D texture
-		err = ret.device->CreateTexture2D(&desc, nullptr, &ret.fboTextureD3D);
-		if (FAILED(err))
-			throw runtime_error("Unable to create device: " + HResultToString(err));
-
-		// Open the D3D device from the OpenGL side
-		ret.glDevice = RenderSurface::GLDXHandle{
-			// Open device
-			wglDXOpenDeviceNV(ret.device),
-			// Close device
-			[](HANDLE device) {
-			    if (!wglDXCloseDeviceNV(device))
-				    cerr << "wglDXCloseDeviceNV:" << GetLastErrorAsString() << endl;
-			}
-		};
-		if (!ret.glDevice)
-			throw runtime_error("wglDXOpenDeviceNV failed: " + GetLastErrorAsString());
-
-		// Get the color buffer
-		const auto deviceCPtr = ret.glDevice.get(); // For use in the lambda below
-		ret.fboTexture.CreateAndBind(GL_TEXTURE_2D);
-		ret.glRenderBuffer = RenderSurface::GLDXHandle{
-			// Register
-			wglDXRegisterObjectNV(ret.glDevice.get(), ret.fboTextureD3D, ret.fboTexture, GL_TEXTURE_2D, WGL_ACCESS_READ_WRITE_NV),
-			// Deregister
-			[deviceCPtr](HANDLE object) {
-			    if (!wglDXUnregisterObjectNV(deviceCPtr, object))
-				    cerr << "wglDXUnregisterObjectNV:" << GetLastErrorAsString() << endl;
-			}
-		};
-		if (!ret.glRenderBuffer)
-			throw runtime_error("wglDXOpenDeviceNV failed: " + GetLastErrorAsString());
-	} catch (const exception& e) {
-		// If we fail to create a DX surface, we will fall back to rendering to a normal GL surface
-		// This will prevent us from submitting to the compositor, but we can still render the scene and take input from the headset
-		ShowErrorBox("Unable to create a DX surface: "s + e.what() + "\n\nCompositor submission will be disabled.");
-
-		ret = {}; // Clear out any already initialized D3D resources
-	}
-
-	RenderSurface::D3DSurfaceLock lock(ret.glDevice.get(), ret.glRenderBuffer.get());
-#endif
 
 	// Create the texture we will render to
 	// The left side of this texture will be for the left eye, the right side for the right eye
@@ -528,10 +387,6 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 		// Render the scene
 		{
-#ifdef USE_DX_RENDER_BUFFER
-			RenderSurface::D3DSurfaceLock lock(renderSurface.glDevice.get(), renderSurface.glRenderBuffer.get());
-#endif
-
 			// Bind our framebuffer so that we render to a texture
 			renderSurface.fbo.Bind(GL_FRAMEBUFFER);
 
@@ -586,10 +441,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			}
 		}
 
-#ifdef USE_DX_RENDER_BUFFER
 		// Present rendered results to compositor
-		if (layer && renderSurface.fboTextureD3D) {
-			const Fove::SFVR_DX11Texture tex{ renderSurface.fboTextureD3D };
+		if (layer && renderSurface.fboTexture) {
+			const Fove::SFVR_GLTexture tex{ (GLuint)renderSurface.fboTexture };
 
 			Fove::SFVR_CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layer->layerId;
@@ -609,14 +463,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			compositor->Submit(submitInfo); // Error ignored, just continue rendering to the window when we're disconnected
 		}
-#endif
 
 		// Present the rendered image to the screen
 		{
-#ifdef USE_DX_RENDER_BUFFER
-			RenderSurface::D3DSurfaceLock lock(renderSurface.glDevice.get(), renderSurface.glRenderBuffer.get());
-#endif
-
 			// Bind the default framebuffer (index 0, that of the window)
 			// No glClear is needed since we will fill the whole view
 			GlCall(glBindFramebuffer, GL_FRAMEBUFFER, 0);
