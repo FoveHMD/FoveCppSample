@@ -30,6 +30,7 @@ std::wstring ToUtf16(const std::string& str);
 
 // Math utilities
 Fove::SFVR_Quaternion AxisAngleToQuat(float vx, float vy, float vz, float angle);
+Fove::SFVR_Quaternion Conjugate(Fove::SFVR_Quaternion);
 Fove::SFVR_Matrix44 QuatToMatrix(Fove::SFVR_Quaternion q);
 Fove::SFVR_Matrix44 Transpose(const Fove::SFVR_Matrix44& m);
 Fove::SFVR_Matrix44 TranslationMatrix(float x, float y, float z);

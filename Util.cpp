@@ -28,6 +28,11 @@ Fove::SFVR_Quaternion AxisAngleToQuat(const float vx, const float vy, const floa
 	return Fove::SFVR_Quaternion(vx * s, vy * s, vz * s, c);
 }
 
+Fove::SFVR_Quaternion Conjugate(const Fove::SFVR_Quaternion q)
+{
+	return Fove::SFVR_Quaternion{ -q.x, -q.y, -q.z, q.w };
+}
+
 Fove::SFVR_Matrix44 QuatToMatrix(const Fove::SFVR_Quaternion q)
 {
 	Fove::SFVR_Matrix44 ret;

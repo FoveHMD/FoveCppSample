@@ -405,9 +405,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::SFVR_Matrix44 modelview = QuatToMatrix(pose.orientation.Conjugate()) * // Apply the HMD orientation
-			    TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) *      // Apply the position tracking offset
-			    TranslationMatrix(0, -playerHeight, 0);                                        // Move ground downwards to compensate for player height
+			const Fove::SFVR_Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation)) * // Apply the HMD orientation
+			    TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) *     // Apply the position tracking offset
+			    TranslationMatrix(0, -playerHeight, 0);                                       // Move ground downwards to compensate for player height
 
 			// Compute the camera matrix which is the opposite of the modelview
 			// This is used for selection in the update cycle
