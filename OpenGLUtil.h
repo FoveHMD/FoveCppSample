@@ -1,5 +1,5 @@
 #pragma once
-#include "FoveTypes.h"
+#include "FoveAPI.h"
 #include "NativeUtil.h"
 #include <iostream>
 #include <memory>

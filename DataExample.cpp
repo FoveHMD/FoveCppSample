@@ -1,7 +1,7 @@
 // FOVE Data Example
 // This shows how to fetch and output data from the FOVE service in a console program
 
-#include "IFVRHeadset.h"
+#include "FoveAPI.h"
 #include "Util.h"
 #include <cstdlib>
 #include <iomanip>
@@ -14,50 +14,43 @@
 using namespace std;
 
 int main() try {
-	// Create the IFVRHeadset object
-	// This is managed by unique_ptr so it will be automatically deleted
-	// This program never exits (except possibly by exception), but RAII should always be used for safety
-	const unique_ptr<Fove::IFVRHeadset> headset{ Fove::GetFVRHeadset() };
-
-	// Initialise the headset
-	// This allows us to declare what capabilities we would like enabled
-	// Doing so may enable hardware or software, and thus consume resources, so it's important to only use capabilities that you know you need
-	CheckError(headset->Initialise(Fove::EFVR_ClientCapabilities::Gaze), "Initialise");
+	// Create the Headset object, taking the capabilities we need in our program
+	// Different capabilities may enable different hardware or software, so use only the capabilities that are needed
+	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::Gaze).getValue();
 
 	// Loop indefinitely
 	while (true) {
 
 		// Fetch the left gaze vector
 		// You can swap this out with other IFVRHeadset functions to get other types of data
-		Fove::SFVR_GazeVector leftGaze, rightGaze;
-		const Fove::EFVR_ErrorCode error = headset->GetGazeVectors(&leftGaze, &rightGaze);
+		const Fove::Result<Fove::Stereo<Fove::GazeVector>> gaze = headset.getGazeVectors();
 
 		// Check for error
-		switch (error) {
+		switch (gaze.getError()) {
 
-		case Fove::EFVR_ErrorCode::None:
+		case Fove::ErrorCode::None:
 			// If there was no error, we are allowed to access the other members of the struct
 			cout << "Left Gaze Vector: (" << fixed << setprecision(3)
-			     << setw(6) << leftGaze.vector.x << ", "
-			     << setw(6) << leftGaze.vector.y << ", "
-			     << setw(6) << leftGaze.vector.z << ')' << endl;
+			     << setw(6) << gaze.getValue().l.vector.x << ", "
+			     << setw(6) << gaze.getValue().l.vector.y << ", "
+			     << setw(6) << gaze.getValue().l.vector.z << ')' << endl;
 			cout << "Right Gaze Vector: (" << fixed << setprecision(3)
-			     << setw(6) << rightGaze.vector.x << ", "
-			     << setw(6) << rightGaze.vector.y << ", "
-			     << setw(6) << rightGaze.vector.z << ')' << endl;
+			     << setw(6) << gaze.getValue().r.vector.x << ", "
+			     << setw(6) << gaze.getValue().r.vector.y << ", "
+			     << setw(6) << gaze.getValue().r.vector.z << ')' << endl;
 			break;
 
-		case Fove::EFVR_ErrorCode::Connect_NotConnected:
+		case Fove::ErrorCode::Connect_NotConnected:
 			cerr << "Not connected to service" << endl;
 			break;
 
-		case Fove::EFVR_ErrorCode::Data_NoUpdate:
+		case Fove::ErrorCode::Data_NoUpdate:
 			cerr << "No update" << endl;
 			break;
 
 		default:
 			// Less common errors are simply logged with their numeric value
-			cerr << "Error #" << EnumToUnderlyingValue(error) << endl;
+			cerr << "Error #" << EnumToUnderlyingValue(gaze.getError()) << endl;
 			break;
 		}
 

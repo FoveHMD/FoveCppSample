@@ -16,7 +16,7 @@ else()
 	unset(FOVE_SDK_FOLDER CACHE)
 
 	# Find the sdk path (falling back to the built-in one if FOVE_SDK_PATH is not set)
-	set(sdk_folder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 0.15.0") # Path to builtin sdk folder
+	set(sdk_folder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 0.16.0") # Path to builtin sdk folder
 	if(NOT "${FOVE_SDK_PATH}" STREQUAL "")
 		# Custom error message that suggests using the built-in release if you are pointing to a bad folder
 		if(NOT EXISTS "${FOVE_SDK_PATH}" AND EXISTS "${sdk_folder}")
@@ -29,22 +29,22 @@ else()
 	if(NOT EXISTS "${sdk_folder}")
 		message(FATAL_ERROR "Unable to find FOVE SDK. Please set FOVE_SDK_PATH to the location of the FOVE SDK.\nNo folder exists at: ${sdk_folder}")
 	endif()
-	if(NOT EXISTS "${sdk_folder}/include/IFVRHeadset.h")
-		message(FATAL_ERROR "Unable to find FOVE SDK headers. Please set FOVE_SDK_PATH to the location of the FOVE SDK.\nNo file exists at: ${sdk_folder}/include/IFVRHeadset.h")
+	if(NOT EXISTS "${sdk_folder}/FoveAPI.h")
+		message(FATAL_ERROR "Unable to find FOVE SDK headers. Please set FOVE_SDK_PATH to the location of the FOVE SDK.\nNo file exists at: ${sdk_folder}/FoveAPI.h")
 	endif()
 	message(STATUS "Using FOVE SDK at ${sdk_folder}")
 
 	# Locate the client dynamic library
-	set(FoveClient "${sdk_folder}/bin/FoveClient.dll")
+	set(FoveClient "${sdk_folder}/FoveClient.dll")
 	if(NOT EXISTS "${FoveClient}")
-		message(FATAL_ERROR "Missing Fove library at ${FoveClient}")
+		message(FATAL_ERROR "Missing FOVE library at ${FoveClient}")
 	endif()
 
 	# Setup build parameters
 	set(CMAKE_CXX_STANDARD 11)
 	add_definitions(-DUNICODE)
-	include_directories("${sdk_folder}/include")
-	link_libraries("${sdk_folder}/lib/FoveClient.lib")
+	include_directories("${sdk_folder}")
+	link_libraries("${sdk_folder}/FoveClient.lib")
 endif()
 
 # Determine the utility headers we have for the current platform

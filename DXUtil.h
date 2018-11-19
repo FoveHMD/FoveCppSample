@@ -11,7 +11,7 @@ std::string HResultToString(HRESULT result) noexcept;
 template <typename Type>
 struct InputArrayBinding;
 template <typename Type>
-InputArrayBinding<Type> BindInputArray(const Type object) { return InputArrayBinding<Type>{ object }; }
+InputArrayBinding<Type> BindInputArray(const Type object) { return InputArrayBinding<Type> { object }; }
 template <typename Type>
 InputArrayBinding<Type*> BindInputArray(const CComPtr<Type>& object) { return BindInputArray<Type*>(object); }
 
