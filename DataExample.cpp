@@ -3,6 +3,7 @@
 
 #include "FoveAPI.h"
 #include "Util.h"
+#include <chrono>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
@@ -55,7 +56,7 @@ int main() try {
 		}
 
 		// Sleep for a second so that we poll at an interval instead of as much as possible
-		this_thread::sleep_for(1s);
+		this_thread::sleep_for(chrono::seconds { 1 }); // Can use 1s in C++14 and later
 	}
 } catch (const exception& e) {
 
