@@ -48,6 +48,17 @@ int main() try {
 
 	// Loop indefinitely
 	while (true) {
+		// Wait for the next eye frame
+		// The current thread will sleep until a new frame comes in
+		// This allows us to capture data at the full frame rate of eye tracking and not use too much CPU
+		const Fove::Result<> waitResult = headset.waitForNextEyeFrame();
+		if (!checkError(waitResult.getError())) {
+			// Sleep for a second in the event of failure
+			// If the wait function fails, it might have returned immediately, and we may eat up 100% of a CPU core if we don't sleep manually
+			this_thread::sleep_for(chrono::seconds { 1 }); // Can use 1s in C++14 and later
+
+			continue; // Skip getting the gaze vectors
+		}
 
 		// Fetch the left gaze vector
 		// You can swap this out with other IFVRHeadset functions to get other types of data
@@ -62,9 +73,6 @@ int main() try {
 			     << setw(5) << gaze.getValue().r.vector.y << ", "
 			     << setw(5) << gaze.getValue().r.vector.z << ')' << endl;
 		}
-
-		// Sleep for a second so that we poll at an interval instead of as much as possible
-		this_thread::sleep_for(chrono::seconds { 1 }); // Can use 1s in C++14 and later
 	}
 } catch (const exception& e) {
 
