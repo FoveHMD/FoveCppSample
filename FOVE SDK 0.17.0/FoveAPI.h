@@ -23,7 +23,7 @@
 
 	Defaults to 0 if the compiler is a C compiler, 1 if the compiler is a C++ compiler.
 */
-#ifndef FOVE_DEFINE_CXX_API
+#if !defined(FOVE_DEFINE_CXX_API) || defined(FOVE_DOXYGEN)
 	#ifdef __cplusplus
 		#define FOVE_DEFINE_CXX_API 1
 	#else
@@ -31,14 +31,13 @@
 	#endif
 #endif
 
-// Namespace that C++ API will be put in
-/*!
-	Since the C++ API is header-only, the functions in it do not need to be in any particular namespace.
-
-	By default, everything is put in the Fove namespace, but this can be customized if the user prefers.
-*/
-#ifndef FOVE_CXX_NAMESPACE
-	#define FOVE_CXX_NAMESPACE Fove
+//! Define this to empty to remove noexcept specifiers from the API
+#ifndef FOVE_NOEXCEPT
+	#ifdef __cplusplus
+		#define FOVE_NOEXCEPT noexcept
+	#else
+		#define FOVE_NOEXCEPT
+	#endif
 #endif
 
 #ifndef FOVE_EXTERN_C
@@ -123,7 +122,36 @@
 	#else
 		#define FOVE_DEPRECATED(func, rem) func
 	#endif
-#endif	
+#endif
+
+#if FOVE_DEFINE_CXX_API // C++ API specific macros are contained within here
+
+// Namespace that C++ API will be put in
+/*!
+	Since the C++ API is header-only, the functions in it do not need to be in any particular namespace.
+
+	By default, everything is put in the Fove namespace, but this can be customized if the user prefers.
+*/
+#ifndef FOVE_CXX_NAMESPACE
+	#define FOVE_CXX_NAMESPACE Fove
+#endif
+
+// Determines if exceptions are enabled or not in the C++ API
+/*!
+	Exceptions are enabled by default in the C++ API, because they are a core C++ feature.
+	However, they are only used in specific functions, not everywhere.
+	If you are working in a code base that bans exceptions, define FOVE_EXCEPTIONS to zero.
+	Exceptions are automatically disabled for the unreal engine.
+*/
+#ifndef FOVE_EXCEPTIONS
+	#ifndef __UNREAL__
+		#define FOVE_EXCEPTIONS 1
+	#else
+		#define FOVE_EXCEPTIONS 0
+	#endif
+#endif
+
+#endif // FOVE_DEFINE_CXX_API
 
 /////////////////////////////////////////////////////////////////////////////////
 // Standard includes ------------------------------------------------------------
@@ -144,6 +172,10 @@
 /////////////////////////////////////////////////////////////////////////////////
 // Doxygen Main Page ------------------------------------------------------------
 /////////////////////////////////////////////////////////////////////////////////
+
+/*! @file FoveAPI.h
+	@brief Complete self-contained FOVE API definition.
+*/
 
 #if FOVE_DEFINE_CXX_API
 /*! \mainpage FOVE C++ API Documentation
@@ -397,6 +429,10 @@ FOVE_STRUCT(Quaternion)
 	float FOVE_STRUCT_VAL(y, 0);
 	float FOVE_STRUCT_VAL(z, 0);
 	float FOVE_STRUCT_VAL(w, 1);
+
+#if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
+	Fove_Quaternion(float xx = 0, float yy = 0, float zz = 0, float ww = 1) : x(xx), y(yy), z(zz), w(ww) {}
+#endif
 } FOVE_STRUCT_END(Quaternion);
 
 //! Struct to represent a 3D-vector
@@ -419,7 +455,7 @@ FOVE_STRUCT(Vec2)
 	float FOVE_STRUCT_VAL(x, 0);
 	float FOVE_STRUCT_VAL(y, 0);
 
-#if FOVE_DEFINE_CXX_API
+#if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Vec2(float xx = 0, float yy = 0): x(xx), y(yy) {}
 #endif
 } FOVE_STRUCT_END(Vec2);
@@ -430,7 +466,7 @@ FOVE_STRUCT(Vec2i)
 	int FOVE_STRUCT_VAL(x, 0);
 	int FOVE_STRUCT_VAL(y, 0);
 
-#if FOVE_DEFINE_CXX_API
+#if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Vec2i(int xx = 0, int yy = 0) : x(xx), y(yy) {}
 #endif
 } FOVE_STRUCT_END(Vec2i);
@@ -578,7 +614,7 @@ FOVE_STRUCT(CompositorLayerCreateInfo)
 /*! This exists primarily for future expandability. */
 FOVE_STRUCT(CompositorLayer)
 {
-	//! Uniquely identifies a layer created within an IFVRCompositor object
+	//! Uniquely identifies a compositor layer
 	int FOVE_STRUCT_VAL(layerId, 0);
 
 	/*! The optimal resolution for a submitted buffer on this layer (for a single eye).
@@ -729,15 +765,23 @@ FOVE_ENUM(ResearchCapabilities)
 	FOVE_ENUM_VAL(ResearchCapabilities, PositionImage) = 0x02,
 } FOVE_ENUM_END(ResearchCapabilities);
 
+//! Eye Radius Information
+FOVE_STRUCT(EyeData)
+{
+	float FOVE_STRUCT_VAL(eyeballRadius, 0); //!< Radius in meters of the eyeball
+	float FOVE_STRUCT_VAL(irisRadius, 0);    //!< Radius in meters of the iris
+	float FOVE_STRUCT_VAL(pupilRadius, 0);   //!< Radius in meters of the pupil
+} FOVE_STRUCT_END(EyeData);
+
 //! Struct for returning gaze data from the research API
 FOVE_STRUCT(ResearchGaze)
 {
-	uint64_t FOVE_STRUCT_VAL(id, 0);        //!< Incremental counter which tells if the data is a fresh value at a given frame
-	uint64_t FOVE_STRUCT_VAL(timestamp, 0); //!< The time at which the gaze data was captured, in microseconds since an unspecified epoch
-	float FOVE_STRUCT_VAL(pupilRadiusL, 0); //!< Radius in meters of the left pupil
-	float FOVE_STRUCT_VAL(pupilRadiusR, 0); //!< Radius in meters of the right pupil
-	float FOVE_STRUCT_VAL(iod, 0);          //!< Distance in meters between the center of the eyes
-	float FOVE_STRUCT_VAL(ipd, 0);          //!< Distance in meters between the pupil centers (continually updated as the eyes move)
+	uint64_t FOVE_STRUCT_VAL(id, 0);            //!< Incremental counter which tells if the data is a fresh value at a given frame
+	uint64_t FOVE_STRUCT_VAL(timestamp, 0);     //!< The time at which the gaze data was captured, in microseconds since an unspecified epoch
+	Fove_EyeData FOVE_STRUCT_VAL(eyeDataL, {}); //!< Left eye radius size information
+	Fove_EyeData FOVE_STRUCT_VAL(eyeDataR, {}); //!< Left eye radius size information
+	float FOVE_STRUCT_VAL(iod, 0);              //!< Distance in meters between the center of the eyes
+	float FOVE_STRUCT_VAL(ipd, 0);              //!< Distance in meters between the pupil centers (continually updated as the eyes move)
 } FOVE_STRUCT_END(ResearchGaze);
 
 //! Indicates the source of an image
@@ -772,12 +816,13 @@ typedef struct Fove_Headset_* Fove_Headset;                 //!< Opaque type rep
 typedef struct Fove_Compositor_* Fove_Compositor;           //!< Opaque type representing a compositor connection
 typedef struct Fove_ResearchHeadset_* Fove_ResearchHeadset; //!< Opaque type representing a headset with research-specific capabilities
 
-//! Writes some text to the FOVE log something to the FOVE log
+//! Writes some text to the FOVE log
 /*!
 	\param level What severity level the log will use
-	\param utf8Text null-terminated text string in UTF8
+	\param utf8Text Null-terminated text string in UTF8
+	\return An error code, usually discarded since nothing critical should depend on logging
  */
-FOVE_EXPORT Fove_ErrorCode fove_logText(Fove_LogLevel level, const char* utf8Text);
+FOVE_EXPORT Fove_ErrorCode fove_logText(Fove_LogLevel level, const char* utf8Text) FOVE_NOEXCEPT;
 
 //! Creates and returns an Fove_Headset object, which is the entry point to the entire API
 /*!
@@ -786,14 +831,14 @@ FOVE_EXPORT Fove_ErrorCode fove_logText(Fove_LogLevel level, const char* utf8Tex
 	\param outHeadset A pointer where the address of the newly created headset will be written upon success
 	\see fove_Headset_destroy
 */
-FOVE_EXPORT Fove_ErrorCode fove_createHeadset(Fove_ClientCapabilities capabilities, Fove_Headset** outHeadset);
+FOVE_EXPORT Fove_ErrorCode fove_createHeadset(Fove_ClientCapabilities capabilities, Fove_Headset** outHeadset) FOVE_NOEXCEPT;
 
 //! Frees resources used by a headset object, including memory and sockets
 /*!
 	Upon return, this headset pointer, and any research headsets from it, should no longer be used.
 	\see fove_createHeadset
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_destroy(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_destroy(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Writes out whether an HMD is know to be connected or not
 /*!
@@ -801,13 +846,13 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_destroy(Fove_Headset*);
 	\return Any error detected that might make the out data unreliable
 	\see fove_createHeadset
  */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareConnected(Fove_Headset*, bool* outHardwareConnected);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareConnected(Fove_Headset*, bool* outHardwareConnected) FOVE_NOEXCEPT;
 
 //! Writes out whether the hardware for the requested capabilities has started
 /*!
 	\return Any error detected that might make the out data unreliable
  */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareReady(Fove_Headset*, bool* outIsReady);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareReady(Fove_Headset*, bool* outIsReady) FOVE_NOEXCEPT;
 
 //! Checks whether the client can run against the installed version of the FOVE SDK
 /*!
@@ -815,7 +860,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareReady(Fove_Headset*, bool* out
 			Connect_RuntimeVersionTooOld if not compatible with the currently running service
 			Otherwise returns an error representing why this can't be determined
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_checkSoftwareVersions(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_checkSoftwareVersions(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Writes out information about the current software versions
 /*!
@@ -823,21 +868,32 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_checkSoftwareVersions(Fove_Headset*);
 	Instead of comparing software versions directly, you should simply call
 	`CheckSoftwareVersions` to ensure that the client and runtime are compatible.
  */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getSoftwareVersions(Fove_Headset*, Fove_Versions* outSoftwareVersions);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getSoftwareVersions(Fove_Headset*, Fove_Versions* outSoftwareVersions) FOVE_NOEXCEPT;
 
 //! Writes out information about the hardware information
 /*!
 	Allows you to get serial number, manufacturer, and model name of the headset.
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getHardwareInfo(Fove_Headset*, Fove_HeadsetHardwareInfo* outHardwareInfo);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getHardwareInfo(Fove_Headset*, Fove_HeadsetHardwareInfo* outHardwareInfo) FOVE_NOEXCEPT;
+
+//! Registers a client capability, enabling the required hardware as needed
+/*!
+	Normally this is invoked directly via fove_createHeadset.
+	You can add and remove capabilities while the object is alive.
+	\param caps A set of capabilities to register. Reregistering an existing capability is a no-op
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_registerCapabilities(Fove_Headset*, Fove_ClientCapabilities caps) FOVE_NOEXCEPT;
+
+//! Unregisters a client capability previously registered with fove_Headset_RegisterCapabilities or fove_Headset_CreateHeadset functions
+FOVE_EXPORT Fove_ErrorCode fove_Headset_unregisterCapabilities(Fove_Headset*, Fove_ClientCapabilities caps) FOVE_NOEXCEPT;
 
 //! Waits for next camera frame and associated eye tracking info becomes available
 /*!
 	Allows you to sync your eye tracking loop to the actual eye-camera loop.
 	On each loop, you would first call this blocking function to wait for a new frame
-	and then proceed to consume eye tracking info accociated with the frame.
+	and then proceed to consume eye tracking info associated with the frame.
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_waitForNextEyeFrame(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_waitForNextEyeFrame(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Writes out each eye's current gaze vector
 /*!
@@ -847,7 +903,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_waitForNextEyeFrame(Fove_Headset*);
 	\param outRight A pointer to the right eye gaze vector which will be written to
 	\return         Any error detected while fetching and writing the gaze vectors
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeVectors(Fove_Headset*, Fove_GazeVector* outLeft, Fove_GazeVector* outRight);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeVectors(Fove_Headset*, Fove_GazeVector* outLeft, Fove_GazeVector* outRight) FOVE_NOEXCEPT;
 
 //! Writes out the user's 2D gaze position on the screens seen through the HMD's lenses
 /*!
@@ -865,49 +921,49 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeVectors(Fove_Headset*, Fove_GazeV
 	\param outRight A pointer to the right eye gaze point in the HMD's virtual screen space
 	\return         Any error detected while fetching and writing the data
  */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeVectors2D(Fove_Headset*, Fove_Vec2* outLeft, Fove_Vec2* outRight);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeVectors2D(Fove_Headset*, Fove_Vec2* outLeft, Fove_Vec2* outRight) FOVE_NOEXCEPT;
 
 //! Writes out eye convergence data
 /*!
 	\param  outConvergenceData  A pointer to the convergence data struct to be written
 	\return                     Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeConvergence(Fove_Headset*, Fove_GazeConvergenceData* outConvergenceData);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeConvergence(Fove_Headset*, Fove_GazeConvergenceData* outConvergenceData) FOVE_NOEXCEPT;
 
 //! Writes out which eyes are closed
 /*!
 	\param outEye   A pointer to the variable to be written
 	\return         Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_checkEyesClosed(Fove_Headset*, Fove_Eye* outEye);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_checkEyesClosed(Fove_Headset*, Fove_Eye* outEye) FOVE_NOEXCEPT;
 
 //! Writes out which eyes are being tracked
 /*!
 	\param outEye   A pointer to the variable to be written
 	\return         Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_checkEyesTracked(Fove_Headset*, Fove_Eye* outEye);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_checkEyesTracked(Fove_Headset*, Fove_Eye* outEye) FOVE_NOEXCEPT;
 
 //! Writes out whether the eye tracking hardware has started
 /*!
 	\param outEyeTrackingEnabled    A pointer to the variable to be written
 	\return                         Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingEnabled(Fove_Headset*, bool* outEyeTrackingEnabled);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingEnabled(Fove_Headset*, bool* outEyeTrackingEnabled) FOVE_NOEXCEPT;
 
 //! Writes out whether eye tracking has been calibrated
 /*!
 	\param outEyeTrackingCalibrated A pointer to the variable to be written
 	\return                         Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrated(Fove_Headset*, bool* outEyeTrackingCalibrated);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrated(Fove_Headset*, bool* outEyeTrackingCalibrated) FOVE_NOEXCEPT;
 
 //! Writes out whether eye tracking is in the process of performing a calibration
 /*!
 	\param outEyeTrackingCalibrating    A pointer to the variable to be written
 	\return                             Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrating(Fove_Headset*, bool* outEyeTrackingCalibrating);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrating(Fove_Headset*, bool* outEyeTrackingCalibrating) FOVE_NOEXCEPT;
 
 //! Writes out whether eye tracking is actively tracking an eye - or eyes
 /*!
@@ -915,40 +971,40 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrating(Fove_Headset*, 
 	\param outEyeTrackingReady  A pointer to the variable to be written
 	\return                     Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingReady(Fove_Headset*, bool* outEyeTrackingReady);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingReady(Fove_Headset*, bool* outEyeTrackingReady) FOVE_NOEXCEPT;
 
 //! Writes out whether motion tracking hardware has started
 /*!
 	\param outMotionReady   A pointer to the variable to be written
 	\return                 Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isMotionReady(Fove_Headset*, bool* outMotionReady);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isMotionReady(Fove_Headset*, bool* outMotionReady) FOVE_NOEXCEPT;
 
 //! Tares the orientation of the headset
 /*!
 	\return Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_tareOrientationSensor(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_tareOrientationSensor(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Writes out whether position tracking hardware has started and returns whether it was successful
 /*!
 	\param outPositionReady A pointer to the variable to be written
 	\return                 Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_isPositionReady(Fove_Headset*, bool* outPositionReady);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isPositionReady(Fove_Headset*, bool* outPositionReady) FOVE_NOEXCEPT;
 
 //! Tares the position of the headset
 /*!
 	\return Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_tarePositionSensors(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_tarePositionSensors(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Writes out the pose of the head-mounted display
 /*!
 	\param outPose  A pointer to the variable to be written
 	\return         Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getLatestPose(Fove_Headset*, Fove_Pose* outPose);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getLatestPose(Fove_Headset*, Fove_Pose* outPose) FOVE_NOEXCEPT;
 
 //! Writes out the values of passed-in left-handed 4x4 projection matrices
 /*!
@@ -961,7 +1017,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getLatestPose(Fove_Headset*, Fove_Pose* 
 	\param outRightMat  A pointer to the matrix you want written
 	\return             Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesLH(Fove_Headset*, float zNear, float zFar, Fove_Matrix44* outLeftMat, Fove_Matrix44* outRightMat);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesLH(Fove_Headset*, float zNear, float zFar, Fove_Matrix44* outLeftMat, Fove_Matrix44* outRightMat) FOVE_NOEXCEPT;
 
 //! Writes out the values of passed-in right-handed 4x4 projection matrices
 /*!
@@ -974,7 +1030,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesLH(Fove_Headset*, f
 	\param outRightMat  A pointer to the matrix you want written
 	\return             Any error detected while fetching and writing the data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesRH(Fove_Headset*, float zNear, float zFar, Fove_Matrix44* outLeftMat, Fove_Matrix44* outRightMat);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesRH(Fove_Headset*, float zNear, float zFar, Fove_Matrix44* outLeftMat, Fove_Matrix44* outRightMat) FOVE_NOEXCEPT;
 
 //! Writes out values for the view frustum of the specified eye at 1 unit away
 /*!
@@ -986,7 +1042,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesRH(Fove_Headset*, f
 	\param outRight A pointer to the struct describing the right camera projection parameters
 	\return         Any error detected while fetching and writing data
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getRawProjectionValues(Fove_Headset*, Fove_ProjectionParams* outLeft, Fove_ProjectionParams* outRight);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getRawProjectionValues(Fove_Headset*, Fove_ProjectionParams* outLeft, Fove_ProjectionParams* outRight) FOVE_NOEXCEPT;
 
 //! Writes out the matrices to convert from eye- to head-space coordinates
 /*!
@@ -995,7 +1051,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getRawProjectionValues(Fove_Headset*, Fo
 	\param outRight  A pointer to the matrix where right-eye transform data will be written
 	\return          Any error detected while fetching and writing data
  */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getEyeToHeadMatrices(Fove_Headset*, Fove_Matrix44* outLeft, Fove_Matrix44* outRight);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getEyeToHeadMatrices(Fove_Headset*, Fove_Matrix44* outLeft, Fove_Matrix44* outRight) FOVE_NOEXCEPT;
 
 //! Interocular distance, returned in meters
 /*!
@@ -1005,7 +1061,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getEyeToHeadMatrices(Fove_Headset*, Fove
 	Future versions of the FOVE service may update the IOD during runtime as needed.
 	\param outIOD A floating point value where the IOD will be written upon exit if there is no error
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getIOD(Fove_Headset*, float* outIOD);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getIOD(Fove_Headset*, float* outIOD) FOVE_NOEXCEPT;
 
 //! Starts calibration if not already calibrated
 /*!
@@ -1016,17 +1072,17 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getIOD(Fove_Headset*, float* outIOD);
 	After calling this, content should periodically poll for IsEyeTrackingCalibration() to become false,
 	so as to ensure that the content is not updating while obscured by the calibrator
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_ensureEyeTrackingCalibration(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_ensureEyeTrackingCalibration(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Starts eye tracking calibration
 /*!
 	\param restartIfRunning If true, this will cause the calibration to restart if it's already running
 	Otherwise this will do nothing if eye tracking calibration is currently running.
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_startEyeTrackingCalibration(Fove_Headset*, bool restartIfRunning);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_startEyeTrackingCalibration(Fove_Headset*, bool restartIfRunning) FOVE_NOEXCEPT;
 
 //! Stops eye tracking calibration if it's running, does nothing if it's not running
-FOVE_EXPORT Fove_ErrorCode fove_Headset_stopEyeTrackingCalibration(Fove_Headset*);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_stopEyeTrackingCalibration(Fove_Headset*) FOVE_NOEXCEPT;
 
 //! Returns a compositor interface from the given headset
 /*!
@@ -1035,14 +1091,14 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_stopEyeTrackingCalibration(Fove_Headset*
 	It is ok for the compositor to outlive the headset passed in.
 	\see fove_Compositor_destroy
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_createCompositor(Fove_Headset*, Fove_Compositor** outCompositor);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_createCompositor(Fove_Headset*, Fove_Compositor** outCompositor) FOVE_NOEXCEPT;
 
 //! Frees resources used by ta compositor object, including memory and sockets
 /*!
 	Upon return, this compositor pointer should no longer be used.
 	\see fove_Headset_createCompositor
 */
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_destroy(Fove_Compositor*);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_destroy(Fove_Compositor*) FOVE_NOEXCEPT;
 
 //! Creates a new layer within the compositor
 /*!
@@ -1060,7 +1116,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_destroy(Fove_Compositor*);
 	\param outLayer A struct where the the defaults of the newly created layer will be written
 	\see fove_Compositor_submit
 */
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_createLayer(Fove_Compositor*, const Fove_CompositorLayerCreateInfo* layerInfo, Fove_CompositorLayer* outLayer);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_createLayer(Fove_Compositor*, const Fove_CompositorLayerCreateInfo* layerInfo, Fove_CompositorLayer* outLayer) FOVE_NOEXCEPT;
 
 //! Submit a frame to the compositor
 /*! This function takes the feed from your game engine to the compositor for output.
@@ -1068,7 +1124,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_createLayer(Fove_Compositor*, const F
 	\param layerCount   The number of layers you are submitting
 	\see fove_Compositor_submit
 */
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_submit(Fove_Compositor*, const Fove_CompositorLayerSubmitInfo* submitInfo, size_t layerCount);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_submit(Fove_Compositor*, const Fove_CompositorLayerSubmitInfo* submitInfo, size_t layerCount) FOVE_NOEXCEPT;
 
 //! Wait for the most recent pose for rendering purposes
 /*! All compositor clients should use this function as the sole means of limiting their frame rate.
@@ -1082,17 +1138,17 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_submit(Fove_Compositor*, const Fove_C
 		Draw(pose);                          // Render the scene using the new pose
 	}
 */
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_waitForRenderPose(Fove_Compositor*, Fove_Pose* outPose);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_waitForRenderPose(Fove_Compositor*, Fove_Pose* outPose) FOVE_NOEXCEPT;
 
 //! Get the last cached pose for rendering purposes
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_getLastRenderPose(Fove_Compositor*, Fove_Pose* outPose);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_getLastRenderPose(Fove_Compositor*, Fove_Pose* outPose) FOVE_NOEXCEPT;
 
 //! Returns true if we are connected to a running compositor and ready to submit frames for compositing
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_isReady(Fove_Compositor*, bool* outIsReady);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_isReady(Fove_Compositor*, bool* outIsReady) FOVE_NOEXCEPT;
 
 //! Returns the ID of the GPU currently attached to the headset
 /*! For systems with multiple GPUs, submitted textures to the compositor must from the same GPU that the compositor is using */
-FOVE_EXPORT Fove_ErrorCode fove_Compositor_getAdapterId(Fove_Compositor*, Fove_AdapterId* outAdapterId);
+FOVE_EXPORT Fove_ErrorCode fove_Compositor_getAdapterId(Fove_Compositor*, Fove_AdapterId* outAdapterId) FOVE_NOEXCEPT;
 
 //! Converts an existing headset object into a research headset
 /*!
@@ -1104,25 +1160,37 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_getAdapterId(Fove_Compositor*, Fove_A
 	\param outHeadset A pointer where the address of the newly created research headset object will be written upon success
 	\see fove_Headset_destroy
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getResearchHeadset(Fove_Headset*, Fove_ResearchCapabilities caps, Fove_ResearchHeadset** outHeadset);
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getResearchHeadset(Fove_Headset*, Fove_ResearchCapabilities caps, Fove_ResearchHeadset** outHeadset) FOVE_NOEXCEPT;
 
 //! Registers a research capability, enabling the required hardware as needed
 /*!
 	Normally this is invoked directly via fove_Headset_getResearchHeadset.
 	You can add and remove capabilities while the object is alive.
-	\param caps A set of capabitilties to register. Reregistering an existing capability is a no-op
+	\param caps A set of capabilities to register. Reregistering an existing capability is a no-op
 */
-FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_registerCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps);
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_registerCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps) FOVE_NOEXCEPT;
 
-//! Deregisters a research capability previously registed with Fove_RegisterResearchCapabilities
-FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_unregisterCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps);
+//! Unregisters a research capability previously registered with Fove_RegisterResearchCapabilities
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_unregisterCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps) FOVE_NOEXCEPT;
 
 //! Returns the latest image of the given type
 /*! The image data buffer is invalidated upon the next call to this function with the same image type */
-FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getImage(Fove_ResearchHeadset*, Fove_ImageType type, Fove_BitmapImage* outImage);
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getImage(Fove_ResearchHeadset*, Fove_ImageType type, Fove_BitmapImage* outImage) FOVE_NOEXCEPT;
 
 //! Returns research-related information from eye tracking
-FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getGaze(Fove_ResearchHeadset*, Fove_ResearchGaze* outGaze);
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getGaze(Fove_ResearchHeadset*, Fove_ResearchGaze* outGaze) FOVE_NOEXCEPT;
+
+//! Turns on position tracking LEDs all at once at a default intensity
+/*!
+	\return Any error detected while trying to turn on position tracking LEDs
+*/
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_turnOnPositionTrackingLEDs(Fove_ResearchHeadset*) FOVE_NOEXCEPT;
+
+//! Turns off position tracking LEDs all at once at a default intensity
+/*!
+	\return Any error detected while trying to turn off position tracking LEDs
+*/
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_turnOffPositionTrackingLEDs(Fove_ResearchHeadset*) FOVE_NOEXCEPT;
 
 /////////////////////////////////////////////////////////////////////////////////
 // Fove C++ API -----------------------------------------------------------------
@@ -1235,11 +1303,26 @@ public:
 	*/
 	const Value& getValueUnchecked() const { return m_value; }
 
+	//! Returns the value if available, otherwise returns the provided default
+	/*!
+		\param defValue A value to return if this object is not valid
+	*/
+	Value valueOr(Value defValue) const { return isValid() ? m_value : std::move(defValue); }
+
 	//! Throws if there is an error, otherwise is a no-op
+	/*!
+		If exceptions are disabled, this will terminate the program instead of throwing.
+	*/
 	void throwIfInvalid() const
 	{
 		if (!isValid())
+		{
+#if FOVE_EXCEPTIONS
 			throw Exception{m_err};
+#else
+			std::terminate();
+#endif
+		}
 	}
 
 	//! Explicit conversion to bool, for use in if statements
@@ -1278,9 +1361,12 @@ template <typename CType>
 class Object
 {
 public:
-	//! Returns the underlying C type which the caller can use to invoke the C API directly
-	/*! This is expected to be never null, every object is designed to be initialized */
+	//! Returns the underlying C type which the caller can use to invoke the C API directly, or null if not valid
 	CType* getCObject() const { return m_object; }
+
+	//! Returns true if this object is non-empty
+	/*! An object may be empty if it's contained data was moved to another variable. */
+	bool isValid() const { return m_object != nullptr; }
 
 protected:
 	CType* m_object = nullptr;
@@ -1302,7 +1388,7 @@ protected:
 class Compositor : public Object<Fove_Compositor>
 {
 public:
-	//! Creates a null compositor
+	//! Creates an empty compositor
 	/*!
 		Please use Headset::createCompositor() to get a valid compositor
 		\see Headset::createCompositor()
@@ -1318,13 +1404,13 @@ public:
 
 	//! Move constructs a compositor
 	/*!
-		\param other may be null or non-null. By return, it will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	Compositor(Compositor&& other) : Object{std::move(other)} {}
 
 	//! Destroys the existing compositor if any, then moves the one referenced by \p other, if any, into this object
 	/*!
-		\param other may be null or non-null. By return, it will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	Compositor& operator=(Compositor&& other)
 	{
@@ -1347,7 +1433,7 @@ public:
 
 	//! Destroys the compositor object, releasing resources
 	/*!
-		Afer this call, this object will be in a null state and future calls will fail.
+		Afer this call, this object will be in an empty state and future calls will fail.
 		This is handled by the destructor, usually the user doesn't need to call this.
 	*/
 	Result<> destroy()
@@ -1394,7 +1480,10 @@ public:
 	}
 
 	//! Wraps fove_Compositor_getAdapterId()
-	Result<AdapterId> getAdapterId(AdapterId* outAdapterId)
+	/*!
+		\param ignore This is not used and will be removed in a future version
+	*/
+	Result<AdapterId> getAdapterId(AdapterId* ignore = nullptr)
 	{
 		return Result<AdapterId>::invoke(&fove_Compositor_getAdapterId, m_object);
 	}
@@ -1411,7 +1500,7 @@ public:
 class ResearchHeadset : public Object<Fove_ResearchHeadset>
 {
 public:
-	//! Creates a null research headset
+	//! Creates an empty research headset
 	/*!
 		Please use Headset::getResearchHeadset() to get a valid research headset.
 		\see Headset::getResearchHeadset()
@@ -1427,13 +1516,13 @@ public:
 
 	//! Move constructs a research headset
 	/*!
-		\param Can be null or non-null. By return, \p other will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	ResearchHeadset(ResearchHeadset&& other) : Object{std::move(other)} {}
 
 	//! Destroys the existing research headset if any, then moves the one referenced by \p other, if any, into this object
 	/*!
-		\param Can be null or non-null. By return, \p other will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	ResearchHeadset& operator=(ResearchHeadset&& other)
 	{
@@ -1468,6 +1557,18 @@ public:
 	{
 		return Result<ResearchGaze>::invoke(&fove_ResearchHeadset_getGaze, m_object);
 	}
+
+	//! Wraps fove_Headset_turnOnPositionTrackingLEDs()
+	Result<> turnOnPositionTrackingLEDs()
+	{
+		return fove_ResearchHeadset_turnOnPositionTrackingLEDs(m_object);
+	}
+
+	//! Wraps fove_Headset_turnOffPositionTrackingLEDs()
+	Result<> turnOffPositionTrackingLEDs()
+	{
+		return fove_ResearchHeadset_turnOffPositionTrackingLEDs(m_object);
+	}
 };
 
 //! Main API for using headsets
@@ -1477,7 +1578,7 @@ public:
 class Headset : public Object<Fove_Headset>
 {
 public:
-	//! Creates a null headset
+	//! Creates an empty headset
 	/*!
 		Please use Headset::create() to create a valid headset.
 		\see Headset::create
@@ -1493,13 +1594,13 @@ public:
 
 	//! Move constructs a headset
 	/*!
-		\param Can be null or non-null. By return, \p other will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	Headset(Headset&& other) : Object{std::move(other)} {}
 
 	//! Destroys the existing headset if any, then moves the one referenced by \p other, if any, into this object
 	/*!
-		\param Can be null or non-null. By return, \p other will be null.
+		\param other May be empty or non-empty. By return, it will be empty.
 	*/
 	Headset& operator=(Headset&& other)
 	{
@@ -1532,7 +1633,7 @@ public:
 
 	//! Destroys the headset, releasing resources
 	/*!
-		Afer this call, this object will be in a null state and future calls will fail.
+		Afer this call, this object will be in an empty state and future calls will fail.
 		This is handled by the destructor, usually the user doesn't need to call this.
 	*/
 	Result<> destroy()
@@ -1540,6 +1641,18 @@ public:
 		Fove_Headset* const object = m_object;
 		m_object = nullptr;
 		return object ? fove_Headset_destroy(object) : ErrorCode::None;
+	}
+
+	//! Wraps fove_Headset_registerCapabilities()
+	Result<> registerCapabilities(const ClientCapabilities caps)
+	{
+		return fove_Headset_registerCapabilities(m_object, caps);
+	}
+
+	//! Wraps fove_Headset_unregisterCapabilities()
+	Result<> unregisterCapabilities(const ClientCapabilities caps)
+	{
+		return fove_Headset_unregisterCapabilities(m_object, caps);
 	}
 
 	//! Creates a new compositor object

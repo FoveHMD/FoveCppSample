@@ -1,8 +1,46 @@
-This distribution allows application developers to create software and games that use the Fove HMD.
+This FOVE SDK distribution allows application developers to create software that works with the Fove HMD.
+
 It is a work in progress and while we will do our best to not introduce breaking changes, sometimes this is inevitable in the software lifetime development cycle.
-Documentation is available on our forum at http://forum.getfove.com/ and is also a work in progress.
+
+Documentation is available on our developer site: https://www.getfove.com/developers/ and is also available in the SDK zip file.
+A developer forum is available at: http://forum.getfove.com/
+Unity & Unreal plugins are also available on our developer site.
 
 If you've found this and don't know who we are or why we're here please check out http://www.getfove.com/
+
+For beginners, we recommend using Unity, as it's the fastest and easiest way to quickly build content for FOVE.
+
+== File List ==
+
+LICENSE             -> License of the FOVE SDK
+README              -> (This file)
+Documentation/      -> Documentation of the API in HTML form
+FoveAPI.h           -> C/C++ header file with the declarations of all the types in the FOVE Client API
+FoveClient.dll      -> Fove Client DLL implementing C/C++ interface. Ship this with your app
+FoveClient_CLR.dll  -> Fove Client DLL for Windows CLR (eg. C#) applcations. Ship this & FoveClient.dll with your CLR apps
+FoveClient.lib      -> Static library for Visual Studio that loads FoveClient.dll
+python/             -> Windows Python bindings
+libFoveClient.dylib -> *Alpha* version of the OSX shared library. Many things are not yet functional yet.
+libFoveClient.so    -> *Alpha* version of the Linux shared library. Many things are not yet functional yet.
+
+== ChangeLog ==
+
+v0.17.0
+- Log statements the in FoveClient library no longer go to stdout by default (they still go to the fove log)
+- Remove the pupilRadiusL/R fields of the Fove::ResearchGaze and replace them by eyeDataL/R structures containing both eyeball, iris and pupil radius size information. Reflect the changes on the different bindings (Python/C#).
+- C#: Rename Fove::Ray to Fove::EyeRay and Fove::Quaternion into Fove:Quat to avoid name conflicts when used with Unity
+- Linux/Mac: Add *alpha* versions of Linux/Mac client binaries. These are alpha and not fully functional yet, and no backwards compatibility is yet supported for non-windows clients.
+- C++: Add noexcept specifiers to the C API when compiled in C++ mode. C API never throws.
+- C++: Quaternion struct defaults to identity (0, 0, 0, 1) instead of all zeros, as originally intended.
+- C/C++/C#: Add APIs to register/unregister a new capability after creation of the headset.
+
+v0.16.1
+- NEW: Python API (Beta) added
+- Added Result::valueOr(default) convenience helper to C++ API
+- Added Result:isValid() convenience helper to the C++ API
+- Added ability to disable exceptions, including by default when used in unreal engine
+- Deprecated useless out parameter in Compositor::getAdapterId
+- Various improvements to commending/documentation
 
 v0.16.0
 
