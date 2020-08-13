@@ -400,7 +400,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			cameraMatrix = QuatToMatrix(pose.orientation) * TranslationMatrix(pose.position.x, pose.position.y, pose.position.z) * TranslationMatrix(0, playerHeight, 0);
 
 			// Get distance between eyes to shift camera for stereo effect
-			const Fove::Result<float> iodOrError = headset.getIOD();
+			const Fove::Result<float> iodOrError = headset.getRenderIOD();
 			const float halfIOD = 0.5f * (iodOrError.isValid() ? iodOrError.getValue() : 0.064f);
 
 			// Fetch the projection matrices

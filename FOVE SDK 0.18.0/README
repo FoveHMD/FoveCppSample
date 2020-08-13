@@ -25,6 +25,22 @@ libFoveClient.so    -> *Alpha* version of the Linux shared library. Many things 
 
 == ChangeLog ==
 
+v0.18.0
+- Added new calibration options: eye-by-eye calibration, one-point calibration and lazy calibration (replace previously existing EnsureEyeTrackingCalibration)
+- Added API to tick and be able to render the calibration process from a client application
+- Added calibration failure cause and success quatity through the newly introduced calibration state enum
+- Added getEyeShapes API to query the outline of the user eyes in the eye images.
+- Added a new "Scene" API for object detection by gaze, eliminating need for clients to handle ray-tracing on their own.
+- Added new FOVE_CALLBACK macro and various helpers for callback-based APIs
+- Renamed Headset.getIOD into Headset.getRenderIOD
+- C#: Added xml documentation file for the FoveClient_CLR dll
+- Added an API for controlling the profile system
+- Added an API to know if the user is currently wearing the headset
+- Added an API to know if the headset adjustment GUI is being displayed
+- Added an API to get, set or reset Fove config variables
+- Added an error code for license errors. Some new features are license locked (these are noted in comments / documentation)
+- Added python v3.8 bindings
+
 v0.17.0
 - Log statements the in FoveClient library no longer go to stdout by default (they still go to the fove log)
 - Remove the pupilRadiusL/R fields of the Fove::ResearchGaze and replace them by eyeDataL/R structures containing both eyeball, iris and pupil radius size information. Reflect the changes on the different bindings (Python/C#).

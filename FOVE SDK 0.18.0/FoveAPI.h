@@ -2,7 +2,7 @@
 // FOVE C/C++ API ///
 /////////////////////
 
-// This header defines both the C and C++ APIs.
+// This header declares both the C and C++ APIs.
 
 #ifndef FOVE_API_H
 #define FOVE_API_H
@@ -40,6 +40,16 @@
 	#endif
 #endif
 
+//! Defines any needed modifiers to function pointers for callbacks, eg. to use a different calling convention
+#ifndef FOVE_CALLBACK
+	#ifdef _MSC_VER
+		#define FOVE_CALLBACK __stdcall
+	#else
+		#define FOVE_CALLBACK
+	#endif
+#endif
+
+//! Helper for disabling name mangling, etc
 #ifndef FOVE_EXTERN_C
 	#ifdef __cplusplus
 		#define FOVE_EXTERN_C extern "C"
@@ -48,6 +58,7 @@
 	#endif
 #endif
 
+//! Helper for declaring the public visibility of a function
 #ifndef FOVE_EXPORT
 	#ifdef __GNUC__
 		#define FOVE_EXPORT FOVE_EXTERN_C __attribute__((visibility("default")))
@@ -58,6 +69,16 @@
 	#endif
 #endif
 
+//! Helper for declaring a compile time constant
+#ifndef FOVE_CONSTEXPR
+	#ifdef __cplusplus
+		#define FOVE_CONSTEXPR constexpr
+	#else
+		#define FOVE_CONSTEXPR const
+	#endif
+#endif
+
+//! Helper to start an API enum
 #ifndef FOVE_ENUM
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_ENUM(enumName) enum class Fove_ ## enumName
@@ -66,6 +87,7 @@
 	#endif
 #endif
 
+//! Helper to add a value to an API enum
 #ifndef FOVE_ENUM_VAL
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_ENUM_VAL(enumName, valueName) valueName
@@ -74,6 +96,7 @@
 	#endif
 #endif
 
+//! Helper to finish an API enum
 #ifndef FOVE_ENUM_END
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_ENUM_END(enumName) ; namespace FOVE_CXX_NAMESPACE { using enumName = Fove_ ## enumName; }
@@ -82,6 +105,7 @@
 	#endif
 #endif
 
+//! Helper to start an API struct
 #ifndef FOVE_STRUCT
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_STRUCT(structName) struct Fove_ ## structName
@@ -90,6 +114,7 @@
 	#endif
 #endif
 
+//! Helper to add a member to an API struct
 #ifndef FOVE_STRUCT_VAL
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_STRUCT_VAL(memberName, defaultVal) memberName = defaultVal
@@ -98,6 +123,7 @@
 	#endif
 #endif
 
+//! Helper to complete an API struct
 #ifndef FOVE_STRUCT_END
 	#if FOVE_DEFINE_CXX_API
 		#define FOVE_STRUCT_END(structName) ; namespace FOVE_CXX_NAMESPACE { using structName = Fove_ ## structName; }
@@ -106,14 +132,16 @@
 	#endif
 #endif
 
+//! Helper to complete an API struct without aliasing it in C++
 #ifndef FOVE_STRUCT_END_NO_CXX_ALIAS
 	#if FOVE_DEFINE_CXX_API
-		#define FOVE_STRUCT_END_NO_CXX_ALIAS(structName) ;
+		#define FOVE_STRUCT_END_NO_CXX_ALIAS(structName)
 	#else
 		#define FOVE_STRUCT_END_NO_CXX_ALIAS(structName) Fove_ ## structName
 	#endif
 #endif
 
+//! Helper for declaring deprecated functions
 #ifndef FOVE_DEPRECATED
 	#ifdef __GNUC__
 		#define FOVE_DEPRECATED(func, rem) __attribute__ ((deprecated(rem))) func
@@ -163,6 +191,7 @@
 #include <exception> // For std::exception
 #include <string>    // For std::string
 #include <utility>   // For std::move
+#include <vector>    // For std::vector
 #endif
 
 #include <stdbool.h> // Pull in the bool type when using C
@@ -174,7 +203,7 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 /*! @file FoveAPI.h
-	@brief Complete self-contained FOVE API definition.
+	@brief This file contains the entire FOVE API, no other headers are needed
 */
 
 #if FOVE_DEFINE_CXX_API
@@ -285,24 +314,24 @@ FOVE_ENUM(ClientCapabilities)
 	FOVE_ENUM_VAL(ClientCapabilities, Position) = 0x04,    //!< Enables headset position tracking
 } FOVE_ENUM_END(ClientCapabilities);
 
-//! An enum of error codes that the system may return
+//! The error codes that the Fove system may return
 FOVE_ENUM(ErrorCode)
 {
-	FOVE_ENUM_VAL(ErrorCode, None) = 0,
+	FOVE_ENUM_VAL(ErrorCode, None) = 0, //!< Indicates that no error occurred
 
 	// Connection Errors
 	FOVE_ENUM_VAL(ErrorCode, Connection_General) = 1,
-	FOVE_ENUM_VAL(ErrorCode, Connect_NotConnected) = 7,
+	FOVE_ENUM_VAL(ErrorCode, Connect_NotConnected) = 7,        //!< The client lost the connection with the Fove service
 	FOVE_ENUM_VAL(ErrorCode, Connect_ServerUnreachable) = 2,
 	FOVE_ENUM_VAL(ErrorCode, Connect_RegisterFailed) = 3,
 	FOVE_ENUM_VAL(ErrorCode, Connect_DeregisterFailed) = 8,
-	FOVE_ENUM_VAL(ErrorCode, Connect_RuntimeVersionTooOld) = 4,
+	FOVE_ENUM_VAL(ErrorCode, Connect_RuntimeVersionTooOld) = 4, //!< The FOVE runtime version is too old for this client
 	FOVE_ENUM_VAL(ErrorCode, Connect_HeartbeatNoReply) = 5,
 	FOVE_ENUM_VAL(ErrorCode, Connect_ClientVersionTooOld) = 6,
 
 	// API usage errors
 	FOVE_ENUM_VAL(ErrorCode, API_General) = 100,                //!< There was an error in the usage of the API other than one of the others in this section
-	FOVE_ENUM_VAL(ErrorCode, API_InitNotCalled) = 101,          //!< A function that should only be called after initialis was invoked before/without initialise
+	FOVE_ENUM_VAL(ErrorCode, API_InitNotCalled) = 101,          //!< A function that should only be called after initialise was invoked before/without initialise
 	FOVE_ENUM_VAL(ErrorCode, API_InitAlreadyCalled) = 102,      //!< A function that should only be called before initialise() was invoked, or initialise was invoked multiple times
 	FOVE_ENUM_VAL(ErrorCode, API_InvalidArgument) = 103,        //!< An argument passed to an API function was invalid for a reason other than one of the below reasons
 	FOVE_ENUM_VAL(ErrorCode, API_NotRegistered) = 104,          //!< Data was queried without first registering for that data
@@ -376,15 +405,81 @@ FOVE_ENUM(ErrorCode)
 
 	// Generic
 	FOVE_ENUM_VAL(ErrorCode, UnknownError) = 9000, //!< Errors that are unknown or couldn't be classified. If possible, info will be logged about the nature of the issue
+
+	// Objects
+	FOVE_ENUM_VAL(ErrorCode, Object_AlreadyRegistered) = 10000, //!< The scene object that you attempted to register was already present in the object registry
+
+	// Calibration
+	FOVE_ENUM_VAL(ErrorCode, Calibration_OtherRendererPrioritized) = 11000, //!< Another renderer registered to render the calibration process have a higher priority than current process.
+
+	// License
+	FOVE_ENUM_VAL(ErrorCode, License_FeatureAccessDenied) = 12000, //!< You don't have the license rights to use the corresponding feature
+
+	// Profiles
+	FOVE_ENUM_VAL(ErrorCode, Profile_DoesntExist ) = 13000, //!< The profile doesn't exist
+	FOVE_ENUM_VAL(ErrorCode, Profile_NotAvailable) = 13001, //!< The profile already exists when it shouldn't, or is otherwise taken or not available
+	FOVE_ENUM_VAL(ErrorCode, Profile_InvalidName ) = 13002, //!< The profile name is not a valid name
+
+	// Config
+	FOVE_ENUM_VAL(ErrorCode, Config_DoesntExist ) = 14000,  //!< The provided key doesn't exist in the config
+	FOVE_ENUM_VAL(ErrorCode, Config_TypeMismatch ) = 14001, //!< The value type of the key doesn't match
 } FOVE_ENUM_END(ErrorCode);
 
-//! Compositor layer type, which defines the order that clients are composited
+//! Compositor layer type, which defines how clients are composited
 FOVE_ENUM(CompositorLayerType)
 {
 	FOVE_ENUM_VAL(CompositorLayerType, Base) = 0,            //!< The first and main application layer
-	FOVE_ENUM_VAL(CompositorLayerType, Overlay) = 0x10000,   //!< Layer over the base
-	FOVE_ENUM_VAL(CompositorLayerType, Diagnostic) = 0x20000 //!< Layer over Overlay
+	FOVE_ENUM_VAL(CompositorLayerType, Overlay) = 0x10000,   //!< Layer over the base layer
+	FOVE_ENUM_VAL(CompositorLayerType, Diagnostic) = 0x20000 //!< Layer over Overlay layer
 } FOVE_ENUM_END(CompositorLayerType);
+
+//! Predefined object ID to signify "no object"
+FOVE_CONSTEXPR int fove_ObjectIdInvalid = -1;
+
+//! The groups of objects of the scene
+FOVE_ENUM(ObjectGroup)
+{
+	FOVE_ENUM_VAL(ObjectGroup, Group0) = 1 << 0,
+	FOVE_ENUM_VAL(ObjectGroup, Group1) = 1 << 1,
+	FOVE_ENUM_VAL(ObjectGroup, Group2) = 1 << 2,
+	FOVE_ENUM_VAL(ObjectGroup, Group3) = 1 << 3,
+	FOVE_ENUM_VAL(ObjectGroup, Group4) = 1 << 4,
+	FOVE_ENUM_VAL(ObjectGroup, Group5) = 1 << 5,
+	FOVE_ENUM_VAL(ObjectGroup, Group6) = 1 << 6,
+	FOVE_ENUM_VAL(ObjectGroup, Group7) = 1 << 7,
+	FOVE_ENUM_VAL(ObjectGroup, Group8) = 1 << 8,
+	FOVE_ENUM_VAL(ObjectGroup, Group9) = 1 << 9,
+	FOVE_ENUM_VAL(ObjectGroup, Group10) = 1 << 10,
+	FOVE_ENUM_VAL(ObjectGroup, Group11) = 1 << 11,
+	FOVE_ENUM_VAL(ObjectGroup, Group12) = 1 << 12,
+	FOVE_ENUM_VAL(ObjectGroup, Group13) = 1 << 13,
+	FOVE_ENUM_VAL(ObjectGroup, Group14) = 1 << 14,
+	FOVE_ENUM_VAL(ObjectGroup, Group15) = 1 << 15,
+	FOVE_ENUM_VAL(ObjectGroup, Group16) = 1 << 16,
+	FOVE_ENUM_VAL(ObjectGroup, Group17) = 1 << 17,
+	FOVE_ENUM_VAL(ObjectGroup, Group18) = 1 << 18,
+	FOVE_ENUM_VAL(ObjectGroup, Group19) = 1 << 19,
+	FOVE_ENUM_VAL(ObjectGroup, Group20) = 1 << 20,
+	FOVE_ENUM_VAL(ObjectGroup, Group21) = 1 << 21,
+	FOVE_ENUM_VAL(ObjectGroup, Group22) = 1 << 22,
+	FOVE_ENUM_VAL(ObjectGroup, Group23) = 1 << 23,
+	FOVE_ENUM_VAL(ObjectGroup, Group24) = 1 << 24,
+	FOVE_ENUM_VAL(ObjectGroup, Group25) = 1 << 25,
+	FOVE_ENUM_VAL(ObjectGroup, Group26) = 1 << 26,
+	FOVE_ENUM_VAL(ObjectGroup, Group27) = 1 << 27,
+	FOVE_ENUM_VAL(ObjectGroup, Group28) = 1 << 28,
+	FOVE_ENUM_VAL(ObjectGroup, Group29) = 1 << 29,
+	FOVE_ENUM_VAL(ObjectGroup, Group30) = 1 << 30,
+	FOVE_ENUM_VAL(ObjectGroup, Group31) = 1 << 31,
+} FOVE_ENUM_END(ObjectGroup);
+
+//! Specify when user gaze casts should be dismissed based on his eyes openness.
+FOVE_ENUM(GazeCastPolicy)
+{
+	FOVE_ENUM_VAL(GazeCastPolicy, DismissBothEyeClosed), //!< Dismiss the gaze cast only if both eyes of the eye are closed.
+	FOVE_ENUM_VAL(GazeCastPolicy, DismissOneEyeClosed),  //!< Dismiss the gaze cast as soon as one of the user's eye is closed.
+	FOVE_ENUM_VAL(GazeCastPolicy, NeverDismiss),         //!< Never dismiss the user gaze cast. This can be useful especially for debugging.
+} FOVE_ENUM_END(GazeCastPolicy);
 
 //! Struct to list various version info about the FOVE software
 /*! Contains the version for the software (both runtime and client versions).
@@ -392,17 +487,17 @@ FOVE_ENUM(CompositorLayerType)
 */
 FOVE_STRUCT(Versions)
 {
-	int FOVE_STRUCT_VAL(clientMajor, -1);
-	int FOVE_STRUCT_VAL(clientMinor, -1);
-	int FOVE_STRUCT_VAL(clientBuild, -1);
-	int FOVE_STRUCT_VAL(clientProtocol, -1);
-	int FOVE_STRUCT_VAL(runtimeMajor, -1);
-	int FOVE_STRUCT_VAL(runtimeMinor, -1);
-	int FOVE_STRUCT_VAL(runtimeBuild, -1);
-	int FOVE_STRUCT_VAL(firmware, -1);
-	int FOVE_STRUCT_VAL(maxFirmware, -1);
-	int FOVE_STRUCT_VAL(minFirmware, -1);
-	bool FOVE_STRUCT_VAL(tooOldHeadsetConnected, false);
+	int FOVE_STRUCT_VAL(clientMajor, -1);                //!< The major version number of the client library
+	int FOVE_STRUCT_VAL(clientMinor, -1);                //!< The minor version number of the client library
+	int FOVE_STRUCT_VAL(clientBuild, -1);                //!< The build version number of the client library
+	int FOVE_STRUCT_VAL(clientProtocol, -1);             //!< The version of the communication protocol the client is using
+	int FOVE_STRUCT_VAL(runtimeMajor, -1);               //!< The major version number of the fove service
+	int FOVE_STRUCT_VAL(runtimeMinor, -1);               //!< The minor version number of the fove service
+	int FOVE_STRUCT_VAL(runtimeBuild, -1);               //!< The build version number of the fove service
+	int FOVE_STRUCT_VAL(firmware, -1);                   //!< The firmware version number
+	int FOVE_STRUCT_VAL(maxFirmware, -1);                //!< Indicate the highest compatible firmware version.
+	int FOVE_STRUCT_VAL(minFirmware, -1);                //!< Indicate the lowest compatible firmware version.
+	bool FOVE_STRUCT_VAL(tooOldHeadsetConnected, false); //!< Indicate whether the connected headset is too old or not
 } FOVE_STRUCT_END(Versions);
 
 //! Struct Contains hardware information for the headset
@@ -416,19 +511,19 @@ FOVE_STRUCT(Versions)
 */
 FOVE_STRUCT(HeadsetHardwareInfo)
 {
-	char FOVE_STRUCT_VAL(serialNumber[256], {}); //!< Serial number, as a null-terminated UTF8 string
-	char FOVE_STRUCT_VAL(manufacturer[256], {}); //!< Manufacturer info, as a null-terminated UTF8 string
-	char FOVE_STRUCT_VAL(modelName[256], {});    //!< Model name, as a null-terminated UTF8 string
+	char FOVE_STRUCT_VAL(serialNumber[256], {}); //!< Serial number, as a null-terminated UTF-8 string
+	char FOVE_STRUCT_VAL(manufacturer[256], {}); //!< Manufacturer info, as a null-terminated UTF-8 string
+	char FOVE_STRUCT_VAL(modelName[256], {});    //!< Model name, as a null-terminated UTF-8 string
 } FOVE_STRUCT_END_NO_CXX_ALIAS(HeadsetHardwareInfo);
 
 //! Struct representation on a quaternion
 /*! A quaternion represents an orientation in 3D space.*/
 FOVE_STRUCT(Quaternion)
 {
-	float FOVE_STRUCT_VAL(x, 0);
-	float FOVE_STRUCT_VAL(y, 0);
-	float FOVE_STRUCT_VAL(z, 0);
-	float FOVE_STRUCT_VAL(w, 1);
+	float FOVE_STRUCT_VAL(x, 0); //!< X component of the quaternion
+	float FOVE_STRUCT_VAL(y, 0); //!< Y component of the quaternion
+	float FOVE_STRUCT_VAL(z, 0); //!< Z component of the quaternion
+	float FOVE_STRUCT_VAL(w, 1); //!< W component of the quaternion
 
 #if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Quaternion(float xx = 0, float yy = 0, float zz = 0, float ww = 1) : x(xx), y(yy), z(zz), w(ww) {}
@@ -439,9 +534,9 @@ FOVE_STRUCT(Quaternion)
 /*! A vector that represents an position in 3D space. */
 FOVE_STRUCT(Vec3)
 {
-	float FOVE_STRUCT_VAL(x, 0);
-	float FOVE_STRUCT_VAL(y, 0);
-	float FOVE_STRUCT_VAL(z, 0);
+	float FOVE_STRUCT_VAL(x, 0); //!< X component of the vector
+	float FOVE_STRUCT_VAL(y, 0); //!< Y component of the vector
+	float FOVE_STRUCT_VAL(z, 0); //!< Z component of the vector
 
 #if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Vec3(float xx = 0, float yy = 0, float zz = 0) : x(xx), y(yy), z(zz) {}
@@ -452,8 +547,8 @@ FOVE_STRUCT(Vec3)
 /*! A vector that represents a position or orientation in 2D space, such as screen or image coordinates. */
 FOVE_STRUCT(Vec2)
 {
-	float FOVE_STRUCT_VAL(x, 0);
-	float FOVE_STRUCT_VAL(y, 0);
+	float FOVE_STRUCT_VAL(x, 0); //!< X component of the vector
+	float FOVE_STRUCT_VAL(y, 0); //!< Y component of the vector
 
 #if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Vec2(float xx = 0, float yy = 0): x(xx), y(yy) {}
@@ -463,8 +558,8 @@ FOVE_STRUCT(Vec2)
 //! Struct to represent a 2D-vector of integers
 FOVE_STRUCT(Vec2i)
 {
-	int FOVE_STRUCT_VAL(x, 0);
-	int FOVE_STRUCT_VAL(y, 0);
+	int FOVE_STRUCT_VAL(x, 0); //!< X component of the vector
+	int FOVE_STRUCT_VAL(y, 0); //!< Y component of the vector
 
 #if FOVE_DEFINE_CXX_API // Mostly for MSVC 2015 which doesn't properly implement brace-intialization of structs
 	Fove_Vec2i(int xx = 0, int yy = 0) : x(xx), y(yy) {}
@@ -483,7 +578,7 @@ FOVE_STRUCT(Ray)
 
 //! Struct to represent a combination of position and orientation of Fove Headset
 /*! This structure is a combination of the Fove headset position and orientation in 3D space, collectively known as the "pose".
-	In the future this may also contain accelleration information for the headset, and may also be used for controllers.
+	In the future this may also contain acceleration information for the headset, and may also be used for controllers.
 */
 FOVE_STRUCT(Pose)
 {
@@ -518,7 +613,7 @@ FOVE_STRUCT(GazeVector)
 	uint64_t FOVE_STRUCT_VAL(id, 0);
 	//! The time at which the gaze data was captured, in microseconds since an unspecified epoch
 	uint64_t FOVE_STRUCT_VAL(timestamp, 0);
-	//! Directional veector of the gaze
+	//! Directional vector of the gaze
 	Fove_Vec3 FOVE_STRUCT_VAL(vector, (Fove_Vec3{0, 0, 1}));
 } FOVE_STRUCT_END(GazeVector);
 
@@ -538,14 +633,16 @@ FOVE_STRUCT(GazeConvergenceData)
 	float FOVE_STRUCT_VAL(pupilDilation, 0.0f);
 	//! True if the user is looking at something (fixation or pursuit), rather than saccading between objects. This could be used to suppress eye input during large eye motions
 	bool FOVE_STRUCT_VAL(attention, false);
+	//! Id of the object being gazed at, as registered via `fove_Headset_registerGazableObject()`. Values at or below zero are reserved
+	int FOVE_STRUCT_VAL(gazedObjectId, fove_ObjectIdInvalid);
 } FOVE_STRUCT_END(GazeConvergenceData);
 
 //! Severity level of log messages
 FOVE_ENUM(LogLevel)
 {
-	FOVE_ENUM_VAL(LogLevel, Debug) = 0,
-	FOVE_ENUM_VAL(LogLevel, Warning) = 1,
-	FOVE_ENUM_VAL(LogLevel, Error) = 2,
+	FOVE_ENUM_VAL(LogLevel, Debug) = 0,   //!< Debug information
+	FOVE_ENUM_VAL(LogLevel, Warning) = 1, //!< An issue requiring attention
+	FOVE_ENUM_VAL(LogLevel, Error) = 2,   //!< An unexpected error
 } FOVE_ENUM_END(LogLevel);
 
 //! Enum to identify which eye is being used
@@ -564,8 +661,8 @@ FOVE_STRUCT(Matrix44)
 	float FOVE_STRUCT_VAL(mat[4][4], {}); //!< Matrix data
 } FOVE_STRUCT_END(Matrix44);
 
-//! Struct holding information about projection fustum planes
-/*! Values are given for a depth of 1 so that it's asy to multiply them by your near clipping plan, for example, to get the correct values for your use. */
+//! Struct holding information about projection frustum planes
+/*! Values are given for a depth of 1 so that it's easy to multiply them by your near clipping plan, for example, to get the correct values for your use. */
 FOVE_STRUCT(ProjectionParams)
 {
 	float FOVE_STRUCT_VAL(left, -1);   //!< Left side (low-X)
@@ -574,7 +671,140 @@ FOVE_STRUCT(ProjectionParams)
 	float FOVE_STRUCT_VAL(bottom, -1); //!< Bottom (low-Y)
 } FOVE_STRUCT_END(ProjectionParams);
 
-//! enum for type of Graphics API
+//! A bounding box
+FOVE_STRUCT(BoundingBox)
+{
+	Fove_Vec3 FOVE_STRUCT_VAL(center, {}); //!< The position of the center of the bounding box
+	Fove_Vec3 FOVE_STRUCT_VAL(extend, {}); //!< The extend of the bounding box (e.g. half of its size)
+} FOVE_STRUCT_END(BoundingBox);
+
+//! Represents the pose of an object of the scene
+/*!
+	Pose transformations are applied in the following order on the object: scale, rotation, translation
+*/
+FOVE_STRUCT(ObjectPose)
+{
+	//! The scale of the object
+	/*!
+		Non-uniform scales are not supported for sphere collider shapes.
+	 */
+	Fove_Vec3 FOVE_STRUCT_VAL(scale, (Fove_Vec3{1, 1, 1}));
+	Fove_Quaternion FOVE_STRUCT_VAL(rotation, (Fove_Quaternion{0, 0, 0, 1})); //!<  The rotation of the object in world space
+	Fove_Vec3 FOVE_STRUCT_VAL(position, {});                                  //!<  The position of the object in world space
+	Fove_Vec3 FOVE_STRUCT_VAL(velocity, {});                                  //!<  Velocity of the object in world space
+} FOVE_STRUCT_END(ObjectPose);
+
+//! Specify the different collider shape types
+FOVE_ENUM(ColliderType)
+{
+	FOVE_ENUM_VAL(ColliderType, Cube) = 0,   //!< A cube shape
+	FOVE_ENUM_VAL(ColliderType, Sphere) = 1, //!< A sphere shape
+	FOVE_ENUM_VAL(ColliderType, Mesh) = 2,   //!< A shape defined by a mesh
+} FOVE_ENUM_END(ColliderType);
+
+//! Define a cube collider shape
+FOVE_STRUCT(ColliderCube)
+{
+	Fove_Vec3 FOVE_STRUCT_VAL(size, (Fove_Vec3{1.0f, 1.0f, 1.0f})); //!< The size of the cube
+} FOVE_STRUCT_END(ColliderCube);
+
+//! Define a sphere collider shape
+FOVE_STRUCT(ColliderSphere)
+{
+	float FOVE_STRUCT_VAL(radius, 0.5f); //!< The radius of the sphere
+} FOVE_STRUCT_END(ColliderSphere);
+
+//! Define a mesh collider shape
+/*!
+	A mesh collider can either be defined through a triangle list or through a vertex/index buffer set.
+	If the index buffer pointer is null, then the vertex buffer is interpreted as a regular triangle list.
+*/
+FOVE_STRUCT(ColliderMesh)
+{
+	//! The vertices of the mesh
+	/*!
+		It contains the X, Y, Z positions of mesh vertices.
+		Triangles are defined using "indices".
+	*/
+	float* FOVE_STRUCT_VAL(vertices, nullptr);
+
+	//! The number of element in the vertex buffer
+	/*!
+		Note that one vertex has three component (X, Y, Z).
+		So the size of vertices array is `3 x vertexCount`.
+	*/
+	unsigned int FOVE_STRUCT_VAL(vertexCount, 0);
+
+	//! The vertex indices defining the triangles of the mesh
+	/*!
+		Triangles are listed one after the others (and not combined using a fan or strip algorithm).
+		The number of elements must equal `3 x triangleCount`.
+
+		Outward faces are defined to be specified counter-clockwise.
+		Face-direction information is not currently used but may be in the future.
+
+		If null, the vertices are interpreted as a simple triangle list.
+	*/
+	unsigned int* FOVE_STRUCT_VAL(indices, nullptr);
+
+	unsigned int FOVE_STRUCT_VAL(triangleCount, 0); //!< The number of triangle present in the mesh
+
+	Fove_BoundingBox FOVE_STRUCT_VAL(boundingBox, {}); //!< If null the bounding box is re-calculated internally
+} FOVE_STRUCT_END(ColliderMesh);
+
+//! Represents a colliding part of a gazable object
+/*!
+	Colliders are used to calculate intersection between gaze rays and gazable objects
+*/
+FOVE_STRUCT(ObjectCollider)
+{
+	Fove_Vec3 FOVE_STRUCT_VAL(center, {});            //!<  The offset of the collider center collider raw shape
+	Fove_ColliderType FOVE_STRUCT_VAL(shapeType, {}); //!< The shape type of the collider
+	union
+	{
+		Fove_ColliderCube cube;
+		Fove_ColliderSphere sphere;
+		Fove_ColliderMesh mesh;
+	} FOVE_STRUCT_VAL(shapeDefinition, {}); //!< The definition of the collider shape. It should be interpreted accordingly to shapeType
+} FOVE_STRUCT_END(ObjectCollider);
+
+//! Represents an object in a 3D world
+/*!
+	The bounding shapes of this object are used for ray casts to determine what the user is looking at.
+	Note that multiple bounding shape types can be used simultaneously, such as a sphere and a mesh.
+	\see fove_Headset_registerGazableObject
+	\see fove_Headset_updateGazableObject
+	\see fove_Headset_removeGazableObject
+*/
+FOVE_STRUCT(GazableObject)
+{
+	int FOVE_STRUCT_VAL(id, fove_ObjectIdInvalid); //!< Unique ID of the object. User-defined objects should use positive integers.
+
+	Fove_ObjectPose FOVE_STRUCT_VAL(pose, {}); //!< The initial pose of the object
+
+	Fove_ObjectGroup FOVE_STRUCT_VAL(group, Fove_ObjectGroup::Group0); //!< The gazable object group this object belongs to
+
+	unsigned int FOVE_STRUCT_VAL(colliderCount, 0);           //!< The number of collider shapes defining this object.
+	Fove_ObjectCollider* FOVE_STRUCT_VAL(colliders, nullptr); //!< An array of colliders defining the geometry of the gazable object
+} FOVE_STRUCT_END(GazableObject);
+
+//! Represents a camera in a 3D world
+/*!
+	The camera view pose determine what the user is looking at and the object mask specify which objects are rendered.
+	\see fove_Headset_registerCameraObject
+	\see fove_Headset_updateCameraObject
+	\see fove_Headset_removeCameraObject
+*/
+FOVE_STRUCT(CameraObject)
+{
+	int FOVE_STRUCT_VAL(id, fove_ObjectIdInvalid); //!< Unique ID of the camera. User-defined id should use positive integers.
+
+	Fove_ObjectPose FOVE_STRUCT_VAL(pose, {}); //!< The camera initial pose
+
+	Fove_ObjectGroup FOVE_STRUCT_VAL(groupMask, static_cast<Fove_ObjectGroup>(0xffffffff)); //!< The bit mask specifying which object groups the camera renders
+} FOVE_STRUCT_END(CameraObject);
+
+//! Enum for type of Graphics API
 /*! Type of Graphics API
 	Note: We currently only support DirectX
 */
@@ -583,6 +813,7 @@ FOVE_ENUM(GraphicsAPI)
 	FOVE_ENUM_VAL(GraphicsAPI, DirectX) = 0, //!< DirectX (Windows only)
 	FOVE_ENUM_VAL(GraphicsAPI, OpenGL) = 1,  //!< OpenGL (All platforms, currently in BETA)
 	FOVE_ENUM_VAL(GraphicsAPI, Metal) = 2,   //!< Metal (Mac only)
+	FOVE_ENUM_VAL(GraphicsAPI, Vulkan) = 3,  //!< Vulkan (Currently Linux only)
 } FOVE_ENUM_END(GraphicsAPI);
 
 //! Enum to help interpret the alpha of texture
@@ -595,10 +826,9 @@ FOVE_ENUM(AlphaMode)
 } FOVE_ENUM_END(AlphaMode);
 
 //! Struct used to define the settings for a compositor client
-/*! Structure used to define the settings for a compositor client.*/
 FOVE_STRUCT(CompositorLayerCreateInfo)
 {
-	//! The type (layer) upon which the client will draw
+	//! The layer type upon which the client will draw
 	Fove_CompositorLayerType FOVE_STRUCT_VAL(type, Fove_CompositorLayerType::Base);
 	//! Setting to disable timewarp, e.g. if an overlay client is operating in screen space
 	bool FOVE_STRUCT_VAL(disableTimeWarp, false);
@@ -631,6 +861,8 @@ FOVE_STRUCT(CompositorTexture)
 	/*!
 		If this is DirectX, this object must be a Fove_DX11Texture
 		If this is OpenGL, this object must be a Fove_GLTexture
+		If this is Metal, this object must be a Fove_MetalTexture
+		If this is Vulkan, this object must be a Fove_VulkanTexture
 		In C++ this field is initialized automatically by the subclass
 	*/
 	Fove_GraphicsAPI graphicsAPI;
@@ -641,7 +873,6 @@ protected:
 	Fove_CompositorTexture(const Fove_GraphicsAPI api) : graphicsAPI{api} {}
 	~Fove_CompositorTexture() = default;
 #endif // FOVE_DEFINE_CXX_API
-
 } FOVE_STRUCT_END(CompositorTexture);
 
 //! Struct used to submit a DirectX 11 texture
@@ -655,13 +886,15 @@ FOVE_STRUCT(DX11Texture)
 	Fove_CompositorTexture parent;
 #endif
 
-	//! This must point to a ID3D11Texture2D
+	//! Pointer to the texture ID3D11Texture2D interface
 	void* FOVE_STRUCT_VAL(texture, nullptr);
 
-#if FOVE_DEFINE_CXX_API
-	Fove_DX11Texture(void* const t = nullptr) : Fove_CompositorTexture{Fove_GraphicsAPI::DirectX}, texture{t} {}
-#endif // FOVE_DEFINE_CXX_API
+	//! Pointer to the texture ID3D11ShaderResourceView interface
+	void* FOVE_STRUCT_VAL(resourceView, nullptr);
 
+#if FOVE_DEFINE_CXX_API
+	Fove_DX11Texture(void* const t = nullptr, void* const rv = nullptr) : Fove_CompositorTexture{Fove_GraphicsAPI::DirectX}, texture{t}, resourceView{rv} {}
+#endif // FOVE_DEFINE_CXX_API
 } FOVE_STRUCT_END(DX11Texture);
 
 //! Struct used to submit an OpenGL texture
@@ -676,7 +909,7 @@ FOVE_STRUCT(GLTexture)
 	Fove_CompositorTexture parent;
 #endif
 
-	//! The opengl id of the texture, as returned by glGenTextures
+	//! The OpenGl ID of the texture, as returned by glGenTextures
 	uint32_t FOVE_STRUCT_VAL(textureId, 0);
 	//! On mac, this is a CGLContextObj, otherwise this field is reserved and you must pass null
 	void* FOVE_STRUCT_VAL(context, nullptr);
@@ -684,7 +917,6 @@ FOVE_STRUCT(GLTexture)
 #if FOVE_DEFINE_CXX_API
 	Fove_GLTexture(const uint32_t tid = 0, void* const c = nullptr) : Fove_CompositorTexture{Fove_GraphicsAPI::OpenGL}, textureId{tid}, context{c} {}
 #endif // FOVE_DEFINE_CXX_API
-
 } FOVE_STRUCT_END(GLTexture);
 
 //! Struct used to submit a texture using the Apple Metal API
@@ -704,17 +936,82 @@ FOVE_STRUCT(MetalTexture)
 #if FOVE_DEFINE_CXX_API
 	Fove_MetalTexture(void* const t = nullptr) : Fove_CompositorTexture{Fove_GraphicsAPI::Metal}, texture{t} {}
 #endif // FOVE_DEFINE_CXX_API
-
 } FOVE_STRUCT_END(MetalTexture);
 
-//! Struct to represent coordinates in normalized space
+// Those opaque handles without `Fove_` prefix are defined in `vulkan/vulkan_core.h`
+// and they are synonyms
+typedef struct VkInstance_T* Fove_VkInstance;             //!< Opaque type representing a vulkan instance
+typedef struct VkPhysicalDevice_T* Fove_VkPhysicalDevice; //!< Opaque type representing a vulkan physical device
+typedef struct VkDevice_T* Fove_VkDevice;                 //!< Opaque type representing a vulkan logical device (It must have VK_KHR_external_memory and VK_KHR_external_memory_fd enabled)
+typedef struct VkQueue_T* Fove_VkQueue;                   //!< Opaque type representing a vulkan queue
+
+typedef struct VkDeviceMemory_T* Fove_VkDeviceMemory; //!< Opaque type representing a vulkan device memory region
+typedef struct VkImage_T* Fove_VkImage;               //!< Opaque type representing a vulkan image
+typedef struct VkImageView_T* Fove_VkImageView;       //!< Opaque type representing a vulkan image view
+
+//! Struct to represent a suite of vulkan components to be used for texture submission
+FOVE_STRUCT(VulkanContext)
+{
+	Fove_VkInstance FOVE_STRUCT_VAL(instance, nullptr);             //!< Vulkan handle to the vulkan instance
+	Fove_VkPhysicalDevice FOVE_STRUCT_VAL(physicalDevice, nullptr); //!< Vulkan handle to the physical device
+	Fove_VkDevice FOVE_STRUCT_VAL(device, nullptr);                 //!< Vulkan handle to the logical device
+	Fove_VkQueue FOVE_STRUCT_VAL(graphicsQueue, nullptr);           //!< Vulkan handle to the graphics queue
+	Fove_VkQueue FOVE_STRUCT_VAL(presentationQueue, nullptr);       //!< Vulkan handle to the presentation queue
+	Fove_VkQueue FOVE_STRUCT_VAL(transferQueue, nullptr);           //!< Vulkan handle to the transfer queue
+	uint32_t FOVE_STRUCT_VAL(graphicsQueueFamilyIndex, ~0u);        //!< Vulkan queue family index for graphics queues
+	uint32_t FOVE_STRUCT_VAL(presentationQueueFamilyIndex, ~0u);    //!< Vulkan queue family index for presentation queues
+	uint32_t FOVE_STRUCT_VAL(transferQueueFamilyIndex, ~0u);        //!< Vulkan queue family index for transfer queues
+} FOVE_STRUCT_END(VulkanContext);
+
+//! Struct to hold handles to resources for a texture
+FOVE_STRUCT(VulkanTextureResources)
+{
+	Fove_VkDeviceMemory FOVE_STRUCT_VAL(deviceMemory, nullptr); //!< Vulkan handle to the device memory region for the texture
+	Fove_VkImage FOVE_STRUCT_VAL(image, nullptr);               //!< Vulkan handle to the image object for the texture
+	Fove_VkImageView FOVE_STRUCT_VAL(imageView, nullptr);       //!< Vulkan handle to the image view object for the texture
+} FOVE_STRUCT_END(VulkanTextureResources);
+
+//! Struct used to submit a texture using the Vulkan API
+//! This is for submitting render textures that are to be composed by the Fove compositor,
+//! so only single layerd 2D images with 32bit RGBA pixels are supported.
+FOVE_STRUCT(VulkanTexture)
+#if FOVE_DEFINE_CXX_API
+	: public Fove_CompositorTexture
+#endif
+{
+#if !FOVE_DEFINE_CXX_API
+	//! Parent object
+	Fove_CompositorTexture parent;
+#endif
+	Fove_VulkanContext FOVE_STRUCT_VAL(context, {});            //!< Vulkan context used to create this texture
+	Fove_VulkanTextureResources FOVE_STRUCT_VAL(resources, {}); //!< Vulkan resources for this texture
+	uint32_t FOVE_STRUCT_VAL(width, 0);                         //!< Width of texture data
+	uint32_t FOVE_STRUCT_VAL(height, 0);                        //!< Height of texture data
+
+#if FOVE_DEFINE_CXX_API
+	Fove_VulkanTexture()
+		: Fove_CompositorTexture{Fove_GraphicsAPI::Vulkan}
+	{
+	}
+	Fove_VulkanTexture(const Fove_VulkanContext context, const Fove_VulkanTextureResources resources, const uint32_t w, const uint32_t h)
+		: Fove_CompositorTexture{Fove_GraphicsAPI::Vulkan}
+		, context{context}
+		, resources{resources}
+		, width{w}
+		, height{h}
+	{
+	}
+#endif // FOVE_DEFINE_CXX_API
+} FOVE_STRUCT_END(VulkanTexture);
+
+//! Specify a region of a texture in normalized space
 /*! Coordinates in normalized space where 0 is left/top and 1 is bottom/right */
 FOVE_STRUCT(TextureBounds)
 {
-	float FOVE_STRUCT_VAL(left, 0.0f);
-	float FOVE_STRUCT_VAL(top, 0.0f);
-	float FOVE_STRUCT_VAL(right, 0.0f);
-	float FOVE_STRUCT_VAL(bottom, 0.0f);
+	float FOVE_STRUCT_VAL(left, 0.0f);   //!< The horizontal coordinate of the left border.
+	float FOVE_STRUCT_VAL(top, 0.0f);    //!< The vertical coordinate of the top border.
+	float FOVE_STRUCT_VAL(right, 0.0f);  //!< The horizontal coordinate of the right border.
+	float FOVE_STRUCT_VAL(bottom, 0.0f); //!< The vertical coordinate of the bottom border.
 } FOVE_STRUCT_END(TextureBounds);
 
 //! Struct used to conglomerate the texture settings for a single eye, when submitting a given layer
@@ -734,7 +1031,7 @@ FOVE_STRUCT(CompositorLayerSubmitInfo)
 	int FOVE_STRUCT_VAL(layerId, 0);                              //!< The layer ID as fetched from Fove_CompositorLayer
 	Fove_Pose FOVE_STRUCT_VAL(pose, {});                          //!< The pose used to draw this layer, usually coming from fove_Compositor_waitForRenderPose
 	Fove_CompositorLayerEyeSubmitInfo FOVE_STRUCT_VAL(left, {});  //!< Information about the left eye
-	Fove_CompositorLayerEyeSubmitInfo FOVE_STRUCT_VAL(right, {}); //!< Information about the left eye
+	Fove_CompositorLayerEyeSubmitInfo FOVE_STRUCT_VAL(right, {}); //!< Information about the right eye
 } FOVE_STRUCT_END(CompositorLayerSubmitInfo);
 
 //! Struct used to identify a GPU adapter (Windows only)
@@ -742,8 +1039,8 @@ FOVE_STRUCT(AdapterId)
 {
 #ifdef _WIN32
 	// On windows, this forms a LUID structure
-	uint32_t FOVE_STRUCT_VAL(lowPart, 0);
-	int32_t FOVE_STRUCT_VAL(highPart, 0);
+	uint32_t FOVE_STRUCT_VAL(lowPart, 0); //!< The lower part of the ID
+	int32_t FOVE_STRUCT_VAL(highPart, 0); //!< The higher part of the ID
 #endif
 } FOVE_STRUCT_END(AdapterId);
 
@@ -765,7 +1062,7 @@ FOVE_ENUM(ResearchCapabilities)
 	FOVE_ENUM_VAL(ResearchCapabilities, PositionImage) = 0x02,
 } FOVE_ENUM_END(ResearchCapabilities);
 
-//! Eye Radius Information
+//! Eye related information
 FOVE_STRUCT(EyeData)
 {
 	float FOVE_STRUCT_VAL(eyeballRadius, 0); //!< Radius in meters of the eyeball
@@ -779,15 +1076,28 @@ FOVE_STRUCT(ResearchGaze)
 	uint64_t FOVE_STRUCT_VAL(id, 0);            //!< Incremental counter which tells if the data is a fresh value at a given frame
 	uint64_t FOVE_STRUCT_VAL(timestamp, 0);     //!< The time at which the gaze data was captured, in microseconds since an unspecified epoch
 	Fove_EyeData FOVE_STRUCT_VAL(eyeDataL, {}); //!< Left eye radius size information
-	Fove_EyeData FOVE_STRUCT_VAL(eyeDataR, {}); //!< Left eye radius size information
+	Fove_EyeData FOVE_STRUCT_VAL(eyeDataR, {}); //!< Right eye radius size information
 	float FOVE_STRUCT_VAL(iod, 0);              //!< Distance in meters between the center of the eyes
 	float FOVE_STRUCT_VAL(ipd, 0);              //!< Distance in meters between the pupil centers (continually updated as the eyes move)
 } FOVE_STRUCT_END(ResearchGaze);
 
+//! Specify the shape of an eye (research API)
+FOVE_STRUCT(EyeShape)
+{
+	//! The position the eye outline in the current eye images in pixels
+	/*! The eye outline is composed of 12 points as follow:
+	    - Point 0: the inside extremity of the outline (the point the closest to the nose)
+	    - Point 1 to 5: bottom eyelid points going from the inside to the outside of the eye
+	    - Point 6: the outside extremity of the outline (the point the furthest from the nose)
+	    - Point 7 to 11: upper eyelid points going from the outside to the inside of the eye
+	*/
+	Fove_Vec2 FOVE_STRUCT_VAL(outline[12], {});
+} FOVE_STRUCT_END(EyeShape);
+
 //! Indicates the source of an image
 FOVE_ENUM(ImageType)
 {
-	FOVE_ENUM_VAL(ImageType, StereoEye) = 0x00, //!< Image comes from an eye camera, with the left/right eyes stiched into one image
+	FOVE_ENUM_VAL(ImageType, StereoEye) = 0x00, //!< Image comes from an eye camera, with the left/right eyes stitched into one image
 	FOVE_ENUM_VAL(ImageType, Position) = 0x01   //!< Image comes from a position tracking camera
 } FOVE_ENUM_END(ImageType);
 
@@ -802,6 +1112,78 @@ FOVE_STRUCT(BitmapImage)
 	/*! The height may be negative to specify a top-down bitmap. */
 	Fove_Buffer FOVE_STRUCT_VAL(image, {});
 } FOVE_STRUCT_END(BitmapImage);
+
+//! Represent a calibration target of the calibration process
+FOVE_STRUCT(CalibrationTarget)
+{
+	//! The position of the calibration target in the 3D world space
+	Fove_Vec3 FOVE_STRUCT_VAL(position, {});
+	//! The recommended size for the calibration target in world space unit.
+	/*! A recommended size of 0 means that the display of the target is not recommended at the current time */
+	float FOVE_STRUCT_VAL(recommendedSize, 0.0f);
+} FOVE_STRUCT_END(CalibrationTarget);
+
+//! Indicate the state of a calibration process
+/*!
+	A calibration process always starts from the `NotStarted` state,
+	then it can go back and forth between the `WaitingForUser` & `CollectingData` states,
+	then it goes to the `ProcessingData` state and finishes with the `Successful` state.
+
+	A failure can happen any time during the process, and stops the process where it was.
+
+	From the `ProcessingData` state the calibration process do not require any rendering
+	and gameplay can be started if wanted but new calibration won't be effective before reaching the `Successful` state.
+*/
+FOVE_ENUM(CalibrationState)
+{
+	FOVE_ENUM_VAL(CalibrationState, NotStarted),               //!< No calibration process haven't been started yet
+	FOVE_ENUM_VAL(CalibrationState, HeadsetAdjustment),        //!< The calibration process is waiting for the user to adjust the headset
+	FOVE_ENUM_VAL(CalibrationState, WaitingForUser),           //!< The calibration process is waiting for the user to get ready
+	FOVE_ENUM_VAL(CalibrationState, CollectingData),           //!< The calibration process is currently collecting calibration data
+	FOVE_ENUM_VAL(CalibrationState, ProcessingData),           //!< The calibration process is currently processing the collected data
+	FOVE_ENUM_VAL(CalibrationState, Successful_HighQuality),   //!< The calibration is successful and of high quality
+	FOVE_ENUM_VAL(CalibrationState, Successful_MediumQuality), //!< The calibration is successful and of medium quality
+	FOVE_ENUM_VAL(CalibrationState, Successful_LowQuality),    //!< The calibration is successful but of low quality
+	FOVE_ENUM_VAL(CalibrationState, Failed_Unknown),           //!< The calibration process failed due to an unknown issue
+	FOVE_ENUM_VAL(CalibrationState, Failed_InaccurateData),    //!< The calibration process failed because of inaccurate or flawed data
+	FOVE_ENUM_VAL(CalibrationState, Failed_NoRenderer),        //!< The calibration process failed after timeout because it couldn't find a renderer
+	FOVE_ENUM_VAL(CalibrationState, Failed_NoUser),            //!< The calibration process failed after timeout because it couldn't detect the user
+	FOVE_ENUM_VAL(CalibrationState, Failed_Aborted)            //!< The calibration process was manually aborted by the user
+} FOVE_ENUM_END(CalibrationState);
+
+//! Indicate the calibration method to use
+FOVE_ENUM(CalibrationMethod)
+{
+	FOVE_ENUM_VAL(CalibrationMethod, Default),  //!< Use the calibration method specified in the configuration file (default: single point)
+	FOVE_ENUM_VAL(CalibrationMethod, OnePoint), //!< Use the simple point calibration method (Requires license)
+	FOVE_ENUM_VAL(CalibrationMethod, Spiral)    //!< Use the spiral calibration method
+} FOVE_ENUM_END(CalibrationMethod);
+
+//! Indicate whether each eye should be calibrated separately or not
+FOVE_ENUM(EyeByEyeCalibration)
+{
+	FOVE_ENUM_VAL(EyeByEyeCalibration, Default),  //!< Use the settings coming from the configuration file (default: Disabled)
+	FOVE_ENUM_VAL(EyeByEyeCalibration, Disabled), //!< Calibrate both eye simultaneously
+	FOVE_ENUM_VAL(EyeByEyeCalibration, Enabled)   //!< Calibrate each eye separately, first the left, then the right. (Requires license)
+} FOVE_ENUM_END(EyeByEyeCalibration);
+
+//! Provide all the calibration data needed to render the current state of the calibration process
+FOVE_STRUCT(CalibrationData)
+{
+	Fove_CalibrationMethod FOVE_STRUCT_VAL(method, Fove_CalibrationMethod::Spiral);  //!< The calibration method currently used
+	Fove_CalibrationState FOVE_STRUCT_VAL(state, Fove_CalibrationState::NotStarted); //!< The current state of the calibration
+	Fove_CalibrationTarget FOVE_STRUCT_VAL(targetL, {});                             //!< The current calibration target to display for the left eye
+	Fove_CalibrationTarget FOVE_STRUCT_VAL(targetR, {});                             //!< The current calibration target to display for the right eye
+} FOVE_STRUCT_END(CalibrationData);
+
+//! Parameters specifying how to run a calibration process
+FOVE_STRUCT(CalibrationOptions)
+{
+	bool FOVE_STRUCT_VAL(lazy, false);                                                     //!< Do not restart the calibration process if it is already calibrated
+	bool FOVE_STRUCT_VAL(restart, false);                                                  //!< Restart the calibration process from the beginning if it is already running
+	Fove_EyeByEyeCalibration FOVE_STRUCT_VAL(eyeByEye, Fove_EyeByEyeCalibration::Default); //!< Calibrate both eyes simultaneously or separately
+	Fove_CalibrationMethod FOVE_STRUCT_VAL(method, Fove_CalibrationMethod::Default);       //!< The calibration method to use
+} FOVE_STRUCT_END(CalibrationOptions);
 
 /////////////////////////////////////////////////////////////////////////////////
 // Fove C API -------------------------------------------------------------------
@@ -819,7 +1201,7 @@ typedef struct Fove_ResearchHeadset_* Fove_ResearchHeadset; //!< Opaque type rep
 //! Writes some text to the FOVE log
 /*!
 	\param level What severity level the log will use
-	\param utf8Text Null-terminated text string in UTF8
+	\param utf8Text Null-terminated text string in UTF-8
 	\return An error code, usually discarded since nothing critical should depend on logging
  */
 FOVE_EXPORT Fove_ErrorCode fove_logText(Fove_LogLevel level, const char* utf8Text) FOVE_NOEXCEPT;
@@ -856,13 +1238,13 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_isHardwareReady(Fove_Headset*, bool* out
 
 //! Checks whether the client can run against the installed version of the FOVE SDK
 /*!
-	\return None if this client is compatible with the currently running service
-			Connect_RuntimeVersionTooOld if not compatible with the currently running service
-			Otherwise returns an error representing why this can't be determined
+	\return #Fove_ErrorCode_None if this client is compatible with the currently running service\n
+	        #Fove_ErrorCode_Connect_RuntimeVersionTooOld if not compatible with the currently running service\n
+	        Otherwise returns an error representing why this can't be determined
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_checkSoftwareVersions(Fove_Headset*) FOVE_NOEXCEPT;
 
-//! Writes out information about the current software versions
+//! Writes out the current software versions
 /*!
 	Allows you to get detailed information about the client and runtime versions.
 	Instead of comparing software versions directly, you should simply call
@@ -870,7 +1252,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_checkSoftwareVersions(Fove_Headset*) FOV
  */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_getSoftwareVersions(Fove_Headset*, Fove_Versions* outSoftwareVersions) FOVE_NOEXCEPT;
 
-//! Writes out information about the hardware information
+//! Writes out the hardware information
 /*!
 	Allows you to get serial number, manufacturer, and model name of the headset.
 */
@@ -878,13 +1260,15 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getHardwareInfo(Fove_Headset*, Fove_Head
 
 //! Registers a client capability, enabling the required hardware as needed
 /*!
-	Normally this is invoked directly via fove_createHeadset.
-	You can add and remove capabilities while the object is alive.
-	\param caps A set of capabilities to register. Reregistering an existing capability is a no-op
+	Usually you provide the required capabilities at the creation of the headset
+	But you can add and remove capabilities anytime while the object is alive.
+	\param caps A set of capabilities to register. Registering an existing capability is a no-op
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_registerCapabilities(Fove_Headset*, Fove_ClientCapabilities caps) FOVE_NOEXCEPT;
 
-//! Unregisters a client capability previously registered with fove_Headset_RegisterCapabilities or fove_Headset_CreateHeadset functions
+//! Unregisters a client capability previously registered
+/*! \param caps A set of capabilities to unregister. Unregistering an not-existing capability is a no-op
+*/
 FOVE_EXPORT Fove_ErrorCode fove_Headset_unregisterCapabilities(Fove_Headset*, Fove_ClientCapabilities caps) FOVE_NOEXCEPT;
 
 //! Waits for next camera frame and associated eye tracking info becomes available
@@ -965,6 +1349,13 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrated(Fove_Headset*, b
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingCalibrating(Fove_Headset*, bool* outEyeTrackingCalibrating) FOVE_NOEXCEPT;
 
+//! Writes out whether or not the GUI that asks the user to adjust their headset is being displayed
+/*!
+	\param outHmdAdjustmentGuiVisible A pointer to the variable to be written
+	\return                          Any error detected while fetching and writing the data
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isHmdAdjustmentGuiVisible(Fove_Headset*, bool* outHmdAdjustmentGuiVisible) FOVE_NOEXCEPT;
+
 //! Writes out whether eye tracking is actively tracking an eye - or eyes
 /*!
 	This means that hardware is enabled and eye tracking is calibrated when the variable is set to `true`.
@@ -979,6 +1370,15 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_isEyeTrackingReady(Fove_Headset*, bool* 
 	\return                 Any error detected while fetching and writing the data
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_isMotionReady(Fove_Headset*, bool* outMotionReady) FOVE_NOEXCEPT;
+
+//! Writes out whether the user is wearing the headset or not
+/*!
+	When user is not present Eye tracking values shouldn't be used as invalid.
+
+	\param outUserPresent   A pointer to the variable to be written
+	\return                 Any error detected while fetching and writing the data
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_isUserPresent(Fove_Headset*, bool* outUserPresent) FOVE_NOEXCEPT;
 
 //! Tares the orientation of the headset
 /*!
@@ -1044,7 +1444,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getProjectionMatricesRH(Fove_Headset*, f
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_getRawProjectionValues(Fove_Headset*, Fove_ProjectionParams* outLeft, Fove_ProjectionParams* outRight) FOVE_NOEXCEPT;
 
-//! Writes out the matrices to convert from eye- to head-space coordinates
+//! Writes out the matrices to convert from eye to head space coordinates
 /*!
 	This is simply a translation matrix that returns +/- IOD/2
 	\param outLeft   A pointer to the matrix where left-eye transform data will be written
@@ -1053,36 +1453,315 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getRawProjectionValues(Fove_Headset*, Fo
  */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_getEyeToHeadMatrices(Fove_Headset*, Fove_Matrix44* outLeft, Fove_Matrix44* outRight) FOVE_NOEXCEPT;
 
-//! Interocular distance, returned in meters
+//! Interocular distance to use for rendering in meters
 /*!
 	This is an estimation of the distance between centers of the left and right eyeballs.
 	Half of the IOD can be used to displace the left and right cameras for stereoscopic rendering.
-	We recommend calling this each frame when doing stereoscoping rendering.
+	We recommend calling this each frame when doing stereoscopic rendering.
 	Future versions of the FOVE service may update the IOD during runtime as needed.
 	\param outIOD A floating point value where the IOD will be written upon exit if there is no error
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_getIOD(Fove_Headset*, float* outIOD) FOVE_NOEXCEPT;
-
-//! Starts calibration if not already calibrated
-/*!
-	Does nothing if the user is already calibrated.
-	Does nothing if the calibration is currently running.
-
-	All eye tracking content should call this before using the gaze to ensure that there's a valid calibration.
-	After calling this, content should periodically poll for IsEyeTrackingCalibration() to become false,
-	so as to ensure that the content is not updating while obscured by the calibrator
-*/
-FOVE_EXPORT Fove_ErrorCode fove_Headset_ensureEyeTrackingCalibration(Fove_Headset*) FOVE_NOEXCEPT;
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getRenderIOD(Fove_Headset*, float* outIOD) FOVE_NOEXCEPT;
 
 //! Starts eye tracking calibration
 /*!
-	\param restartIfRunning If true, this will cause the calibration to restart if it's already running
-	Otherwise this will do nothing if eye tracking calibration is currently running.
+	\param options Calibration options, or null to use default options
+	\return #Fove_ErrorCode_None in the event of success\n
+	        #Fove_ErrorCode_License_FeatureAccessDenied if any of the enabled options require a license beyond what is active on this machine
 */
-FOVE_EXPORT Fove_ErrorCode fove_Headset_startEyeTrackingCalibration(Fove_Headset*, bool restartIfRunning) FOVE_NOEXCEPT;
+FOVE_EXPORT Fove_ErrorCode fove_Headset_startEyeTrackingCalibration(Fove_Headset*, const Fove_CalibrationOptions* options) FOVE_NOEXCEPT;
 
 //! Stops eye tracking calibration if it's running, does nothing if it's not running
 FOVE_EXPORT Fove_ErrorCode fove_Headset_stopEyeTrackingCalibration(Fove_Headset*) FOVE_NOEXCEPT;
+
+//! Get the state of the currently running calibration process
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getEyeTrackingCalibrationState(Fove_Headset*, Fove_CalibrationState*) FOVE_NOEXCEPT;
+
+//! Tick the current calibration process and retrieve data information to render the current calibration state.
+/*!
+	\param deltaTime The time elapsed since the last rendered frame
+	\param isVisible Indicate to the calibration system that something is being drawn to the screen.
+	This allows the calibration renderer to take as much time as it wants to display success/failure messages
+	and animate away before the calibration processes is marked as completed by the `IsEyeTrackingCalibrating` function.
+	\param outCalibrationData The calibration current state information
+
+	This function is how the client declares to the calibration system that is available to render calibration.
+	The calibration system determines which of the available renderers has the highest priority,
+	and returns to that render the information needed to render calibration via the outTarget parameter.
+	Even while ticking this, you may get no result because either no calibration is running,
+	or a calibration is running but some other higher priority renderer is doing the rendering.
+
+	Note that it is perfectly fine not to call this function, in which case the Fove service will automatically render the calibration process for you.
+
+	\return #Fove_ErrorCode_None in the event of success\n
+	        #Fove_ErrorCode_License_FeatureAccessDenied if a sufficient license is not registered on this machine
+	        #Fove_ErrorCode_Calibration_OtherRendererPrioritized if another process has currently the priority for rendering calibration process
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_tickEyeTrackingCalibration(Fove_Headset*, float deltaTime, bool isVisible, Fove_CalibrationData* outCalibrationData) FOVE_NOEXCEPT;
+
+//! Registers an object in the 3D world
+/*!
+	Registering 3D world objects allows FOVE software to identify which objects are being gazed at.
+	We recommend that clients opt-in to this functionality rather than doing it themselves, as our algorithm may improve over time.
+	Clients of course may do their own detection if they have special needs, such as performance needs, or just want to use their own algorithm.
+
+	Use #fove_Headset_registerCameraObject to set the pose of the corresponding camera in the 3D world.
+
+	Connection to the service is not required for object registration, thus you can register your world objects at will and not worry about connection or reconnection status.
+
+	\param object       A description of the object in the 3D world. Data is copied and no reference is kept to this memory after return.
+	\return             #Fove_ErrorCode_None if the object is successfully added or updated\n
+	                    #Fove_ErrorCode_API_NullInPointer if either parameter is null\n
+	                    #Fove_ErrorCode_API_InvalidArgument if the object is invalid in any way (such as an invalid object id)\n
+	                    #Fove_ErrorCode_Object_AlreadyRegistered if an object with same id is already registered
+	\see                fove_Headset_updateGazableObject
+	\see                fove_Headset_removeGazableObject
+	\see                Fove_GazeConvergenceData
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_registerGazableObject(Fove_Headset*, const Fove_GazableObject* object) FOVE_NOEXCEPT;
+
+//! Update a previously registered 3D object pose.
+/*!
+	\param objectId     Id of the object passed to fove_Headset_registerGazableObject()
+	\param pose         the updated pose of the object
+	\return             #Fove_ErrorCode_None if the object was in the scene and is now updated\n
+	                    #Fove_ErrorCode_API_NullInPointer if either parameter is null\n
+	                    #Fove_ErrorCode_API_InvalidArgument if the object was not already registered
+	\see                fove_Headset_registerCameraObject
+	\see                fove_Headset_removeGazableObject
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_updateGazableObject(Fove_Headset*, int objectId, const Fove_ObjectPose* pose) FOVE_NOEXCEPT;
+
+//! Removes a previously registered 3D object from the scene.
+/*!
+	Because of the asynchronous nature of the FOVE system, this object may still be referenced in future frames for a very short period of time.
+
+	\param objectId     Id of the object passed to fove_Headset_registerGazableObject()
+	\return             #Fove_ErrorCode_None if the object was in the scene and is now removed\n
+	                    #Fove_ErrorCode_API_InvalidArgument if the object was not already registered
+	\see                fove_Headset_registerGazableObject
+	\see                fove_Headset_updateGazableObject
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_removeGazableObject(Fove_Headset*, int objectId) FOVE_NOEXCEPT;
+
+//! Registers an camera in the 3D world
+/*!
+	Registering 3D world objects and camera allows FOVE software to identify which objects are being gazed at.
+	We recommend that clients opt-in to this functionality rather than doing it themselves, as our algorithm may improve over time.
+	Clients of course may do their own detection if they have special needs, such as performance needs, or just want to use their own algorithm.
+
+	At least 1 camera needs to be registered for automatic object gaze recognition to work. Use the object group mask of the camera to
+	specify which objects the camera is capturing. The camera view pose determine the gaze raycast direction and position.
+	The camera view pose should include any and all offsets from position tracking. No transforms from the headset are added in automatically.
+
+	Connection to the service is not required for object registration, thus you can register your world objects at will and not worry about connection or reconnection status.
+
+	\param camera       A description of the camera. Data is copied and no reference is kept to this memory after return.
+	\return             #Fove_ErrorCode_None if the camera is successfully added or updated\n
+	                    #Fove_ErrorCode_API_NullInPointer if either parameter is null\n
+	                    #Fove_ErrorCode_API_InvalidArgument if the object is invalid in any way (such as an invalid object id)\n
+	                    #Fove_ErrorCode_Object_AlreadyRegistered if an object with same id is already registered
+	\see                fove_Headset_updateCameraObject
+	\see                fove_Headset_removeCameraObject
+	\see                Fove_GazeConvergenceData
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_registerCameraObject(Fove_Headset*, const Fove_CameraObject* camera) FOVE_NOEXCEPT;
+
+//! Update the pose of a registered camera
+/*!
+	\param cameraId     Id of the camera passed to fove_Headset_registerCameraObject()
+	\param pose         the updated pose of the camera
+	\return             #Fove_ErrorCode_None if the object was in the scene and is now removed\n
+	                    #Fove_ErrorCode_API_InvalidArgument if the object was not already registered
+	\see                fove_Headset_registerCameraObject
+	\see                fove_Headset_removeCameraObject
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_updateCameraObject(Fove_Headset*, int cameraId, const Fove_ObjectPose* pose) FOVE_NOEXCEPT;
+
+//! Removes a previously registered camera from the scene.
+/*!
+	\param cameraId     Id of the camera passed to fove_Headset_registerCameraObject()
+	\return             #Fove_ErrorCode_None if the object was in the scene and is now removed\n
+	                    #Fove_ErrorCode_API_InvalidArgument is returned if the object was not already registered
+	\see                fove_Headset_registerCameraObject
+	\see                fove_Headset_updateCameraObject
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_removeCameraObject(Fove_Headset*, int cameraId) FOVE_NOEXCEPT;
+
+//! Get the current gaze cast policy
+/*!
+	\param policy       A pointer used to received the current gaze cast policy
+	\return             #Fove_ErrorCode_None if the gaze cast policy was properly returned\n
+	                    #Fove_ErrorCode_API_InvalidArgument is returned if the given pointer was null
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getGazeCastPolicy(Fove_Headset*, Fove_GazeCastPolicy* policy) FOVE_NOEXCEPT;
+
+//! Set the current gaze cast policy
+/*!
+	\param policy       The new gaze cast policy
+	\return             #Fove_ErrorCode_None if the gaze cast policy was properly updated\n
+	                    #Fove_ErrorCode_API_InvalidArgument is returned if the system failed to change the policy
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_setGazeCastPolicy(Fove_Headset*, Fove_GazeCastPolicy policy) FOVE_NOEXCEPT;
+
+//! Creates a new profile
+/*!
+	The FOVE system keeps a set of profiles so that different users on the same system can store data, such as calibrations, separately.
+	Profiles persist to disk and survive restart.
+	Third party applications can control the profile system and store data within it.
+
+	This function creates a new profile, but does not add any data or switch to it.
+	\param newName Null-terminated UTF-8 unique name of the profile to create
+	\return #Fove_ErrorCode_None if the profile was successfully created\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_Profile_InvalidName if newName was invalid\n
+	        #Fove_ErrorCode_Profile_NotAvailable if the name is already taken\n
+	        #Fove_ErrorCode_API_NullInPointer if newName is null
+	\see fove_Headset_renameProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_createProfile(Fove_Headset*, const char* newName) FOVE_NOEXCEPT;
+
+//! Renames an existing profile
+/*!
+	This function renames an existing profile. This works on the current profile as well.
+	\param oldName Null-terminated UTF-8 name of the profile to be renamed
+	\param newName Null-terminated UTF-8 unique new name of the profile
+	\return #Fove_ErrorCode_None if the profile was successfully renamed\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_Profile_DoesntExist if the requested profile at oldName doesn't exist\n
+	        #Fove_ErrorCode_Profile_NotAvailable If the new named is already taken\n
+	        #Fove_ErrorCode_API_InvalidArgument If the old name and new name are the same\n
+	        #Fove_ErrorCode_API_NullInPointer if oldName or newName is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_renameProfile(Fove_Headset*, const char* oldName, const char* newName) FOVE_NOEXCEPT;
+
+//! Deletes an existing profile
+/*!
+	This function deletes an existing profile.
+
+	If the deleted profile is the current profile, then no current profile is set after this returns.
+	In such a case, it is undefined whether any existing profile data loaded into memory may be kept around.
+
+	\param profileName Null-terminated UTF-8 name of the profile to be deleted
+	\return #Fove_ErrorCode_None if the profile was successfully deleted\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_Profile_DoesntExist if the requested profile at profileName doesn't exist\n
+	        #Fove_ErrorCode_API_NullInPointer if profileName is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_renameProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_deleteProfile(Fove_Headset*, const char* profileName) FOVE_NOEXCEPT;
+
+//! Lists all existing profiles
+/*!
+	Invoking any other function on this headset from the callback will yield undefined behavior.
+
+	callbackProfileName is a non-null, null-terminated UTF-8 string containing the name of a profile.
+
+	\param callback A function pointer to a function that will be called once for each profile, in no particular order
+	\param callbackData An arbitrary pointer passed to the callback
+	\return #Fove_ErrorCode_None if the profile names were successfully listed\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_API_NullInPointer if callback is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_renameProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_listProfiles(Fove_Headset*, void(FOVE_CALLBACK* callback)(const char* callbackProfileName, void* callbackData), void* callbackData) FOVE_NOEXCEPT;
+
+//! Sets the current profile
+/*!
+	When changing profile, the FOVE system will load up data, such as calibration data, if it is available.
+	If loading a profile with no calibration data, whether or not the FOVE system keeps old data loaded into memory is undefined.
+
+	Please note that no-ops are OK but you should check for #Fove_ErrorCode_Profile_NotAvailable.
+
+	\param profileName Name of the profile to make current, in UTF-8
+	\return #Fove_ErrorCode_None if the profile was successfully set as the current profile\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_Profile_DoesntExist if there is no such profile\n
+	        #Fove_ErrorCode_Profile_NotAvailable if the requested profile is the current profile\n
+	        #Fove_ErrorCode_API_NullInPointer if profileName is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_renameProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_getCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_setCurrentProfile(Fove_Headset*, const char* profileName) FOVE_NOEXCEPT;
+
+//! Gets the current profile
+/*!
+	The callback is not invoked if there is no current profile.
+
+	callbackProfileName is a non-null, null-terminated UTF-8 string with the name of the current profile.
+
+	Invoking any other function on this headset from the callback will yield undefined behavior.
+	\param callback A function pointer to a function that will be called up to onces
+	\param callbackData An arbitrary pointer passed to the callback
+	or an empty string if no profile is set)
+	\return #Fove_ErrorCode_None if the profile name was successfully retrieved\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_API_NullInPointer if callback is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_renameProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getProfileDataPath
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getCurrentProfile(Fove_Headset*, void(FOVE_CALLBACK* callback)(const char* callbackProfileName, void* callbackData), void* callbackData) FOVE_NOEXCEPT;
+
+//! Gets the data folder for a given profile
+/*!
+	Allows you to retrieve a filesytem directory where third party apps can write data associated with this profile. This directory will be created before return.
+
+	Since multiple applications may write stuff to a profile, please prefix any files you create with something unique to your application.
+
+	There are no special protections on profile data, and it may be accessible to any other app on the system. Do not write sensitive data here.
+
+	This is intended for simple uses. For advanced uses that have security concerns, or want to sync to a server, etc,
+	third party applications are encouraged to use their own separate data store keyed by profile name.
+	They will need to test for profile name changes and deletions manually in that case.
+
+	Invoking any other function on this headset from the callback will yield undefined behavior.
+
+	callbackProfileName is a non-null, null-terminated UTF-8 string with the path.
+
+	\param callback A function pointer to a function that will be called once if successful. Not invoked in the event of error
+	\param callbackData An arbitrary pointer passed to the callback
+	\param profileName A null-terminated UTF-8 string with the name of the profile to be queried, or an empty string if no profile is set
+	\return #Fove_ErrorCode_None if the profile was successfully deleted\n
+	        #Fove_ErrorCode_Profile_DoesntExist if there is no such profile\n
+	        #Fove_ErrorCode_Connect_NotConnected if not connected to the service\n
+	        #Fove_ErrorCode_API_NullInPointer if profileName or callback is null
+	\see fove_Headset_createProfile
+	\see fove_Headset_renameProfile
+	\see fove_Headset_deleteProfile
+	\see fove_Headset_listProfiles
+	\see fove_Headset_setCurrentProfile
+	\see fove_Headset_getCurrentProfile
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Headset_getProfileDataPath(Fove_Headset*, const char* profileName, void(FOVE_CALLBACK* callback)(const char* callbackProfileName, void* callbackData), void* callbackData) FOVE_NOEXCEPT;
 
 //! Returns a compositor interface from the given headset
 /*!
@@ -1093,7 +1772,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_stopEyeTrackingCalibration(Fove_Headset*
 */
 FOVE_EXPORT Fove_ErrorCode fove_Headset_createCompositor(Fove_Headset*, Fove_Compositor** outCompositor) FOVE_NOEXCEPT;
 
-//! Frees resources used by ta compositor object, including memory and sockets
+//! Frees resources used by the compositor object, including memory and sockets
 /*!
 	Upon return, this compositor pointer should no longer be used.
 	\see fove_Headset_createCompositor
@@ -1104,7 +1783,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_destroy(Fove_Compositor*) FOVE_NOEXCE
 /*!
 	This function create a layer upon which frames may be submitted to the compositor by this client.
 
-	A connection to the compositor must exists for this to pass.
+	A connection to the compositor must exist for this to pass.
 	This means you need to wait for fove_Compositor_isReady before calling this function.
 	However, if connection to the compositor is lost and regained, this layer will persist.
 	For this reason, you should not recreate your layers upon reconnection, simply create them once.
@@ -1113,14 +1792,14 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_destroy(Fove_Compositor*) FOVE_NOEXCE
 	This is a feature we would like to add in the future.
 
 	\param layerInfo The settings for the layer to be created
-	\param outLayer A struct where the the defaults of the newly created layer will be written
+	\param outLayer A struct where the defaults of the newly created layer will be written
 	\see fove_Compositor_submit
 */
 FOVE_EXPORT Fove_ErrorCode fove_Compositor_createLayer(Fove_Compositor*, const Fove_CompositorLayerCreateInfo* layerInfo, Fove_CompositorLayer* outLayer) FOVE_NOEXCEPT;
 
 //! Submit a frame to the compositor
 /*! This function takes the feed from your game engine to the compositor for output.
-	\param submitInfo   An array of layerCount Fove_LayerSubmitInfo structs, each of which provides texture data for a unique layer
+	\param submitInfo   An array of layerCount Fove_CompositorLayerSubmitInfo structs, each of which provides texture data for a unique layer
 	\param layerCount   The number of layers you are submitting
 	\see fove_Compositor_submit
 */
@@ -1130,13 +1809,14 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_submit(Fove_Compositor*, const Fove_C
 /*! All compositor clients should use this function as the sole means of limiting their frame rate.
 	This allows the client to render at the correct frame rate for the HMD display.
 	Upon this function returning, the client should proceed directly to rendering, to reduce the chance of missing the frame.
-	If outPose is not null, this function will return the latest pose as a conveience to the caller.
+	If outPose is not null, this function will return the latest pose as a convenience to the caller.
 	In general, a client's main loop should look like:
 	{
 		Update();                            // Run AI, physics, etc, for the next frame
 		compositor.WaitForRenderPose(&pose); // Wait for the next frame, and get the pose
 		Draw(pose);                          // Render the scene using the new pose
 	}
+	\param outPose The latest pose of the headset.
 */
 FOVE_EXPORT Fove_ErrorCode fove_Compositor_waitForRenderPose(Fove_Compositor*, Fove_Pose* outPose) FOVE_NOEXCEPT;
 
@@ -1153,7 +1833,7 @@ FOVE_EXPORT Fove_ErrorCode fove_Compositor_getAdapterId(Fove_Compositor*, Fove_A
 //! Converts an existing headset object into a research headset
 /*!
 	It is fine to call this function multiple times with the same headset, the same pointer will be returned.
-	The research API does not provide backwards or forwards compatibility with different FOVE runtimes.
+	The research API does not provide backwards or forwards compatibility with different FOVE runtime.
 	Do not release general purpose software using this API, this is meant for researcher user in a controlled environment (lab).
 	The result Fove_ResearchHeadset is destroyed when the input headset object is destroyed. There is no destroy/free function for the research headset specifically.
 	\param caps These capabilities are automatically passed to fove_ResearchHeadset_registerCapabilities so as to avoid an extra call
@@ -1164,21 +1844,32 @@ FOVE_EXPORT Fove_ErrorCode fove_Headset_getResearchHeadset(Fove_Headset*, Fove_R
 
 //! Registers a research capability, enabling the required hardware as needed
 /*!
-	Normally this is invoked directly via fove_Headset_getResearchHeadset.
-	You can add and remove capabilities while the object is alive.
-	\param caps A set of capabilities to register. Reregistering an existing capability is a no-op
+	Usually you provide the required capabilities at the creation of the research headset.
+	But you can add and remove capabilities anytime while the object is alive.
+	\param caps A set of capabilities to register. Registering an existing capability is a no-op
 */
 FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_registerCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps) FOVE_NOEXCEPT;
 
-//! Unregisters a research capability previously registered with Fove_RegisterResearchCapabilities
+//! Unregisters a research capability previously registered
+/*! \param caps A set of capabilities to unregister. Unregistering an not-existing capability is a no-op
+*/
 FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_unregisterCapabilities(Fove_ResearchHeadset*, Fove_ResearchCapabilities caps) FOVE_NOEXCEPT;
 
 //! Returns the latest image of the given type
 /*! The image data buffer is invalidated upon the next call to this function with the same image type */
 FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getImage(Fove_ResearchHeadset*, Fove_ImageType type, Fove_BitmapImage* outImage) FOVE_NOEXCEPT;
 
-//! Returns research-related information from eye tracking
+//! Returns research-related gaze information
 FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getGaze(Fove_ResearchHeadset*, Fove_ResearchGaze* outGaze) FOVE_NOEXCEPT;
+
+//! Returns the eye shape of the left and right eyes
+/*!
+	\param outLeft Location to write the shape of the left eye
+	\param outRight Location to write the shape of the right eye
+	\return #Fove_ErrorCode_API_NotRegistered if gaze capability has not been registered
+	        #Fove_ErrorCode_License_FeatureAccessDenied if the current license is not sufficient for this feature
+*/
+FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_getEyeShapes(Fove_ResearchHeadset*, Fove_EyeShape* outLeft, Fove_EyeShape* outRight) FOVE_NOEXCEPT;
 
 //! Turns on position tracking LEDs all at once at a default intensity
 /*!
@@ -1191,6 +1882,104 @@ FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_turnOnPositionTrackingLEDs(Fove_
 	\return Any error detected while trying to turn off position tracking LEDs
 */
 FOVE_EXPORT Fove_ErrorCode fove_ResearchHeadset_turnOffPositionTrackingLEDs(Fove_ResearchHeadset*) FOVE_NOEXCEPT;
+
+//! Get the value of the provided key from the FOVE config
+/*!
+	\param key The key name of the value to retrieve, null-terminated and in UTF-8
+	\param outValue The value associated to the key if found.
+	\return #Fove_ErrorCode_None if the value was successfully retrieved\n
+	        #Fove_ErrorCode_API_NullInPointer if key or outValue is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the queried key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a boolean
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_getValue_bool(const char* key, bool* outValue) FOVE_NOEXCEPT;
+
+//! Get the value of the provided key from the FOVE config
+/*!
+	\param key The key name of the value to retrieve, null-terminated and in UTF-8
+	\param outValue The value associated to the key if found.
+	\return #Fove_ErrorCode_None if the value was successfully retrieved\n
+	        #Fove_ErrorCode_API_NullInPointer if key or outValue is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the queried key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not an int
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_getValue_int(const char* key, int* outValue) FOVE_NOEXCEPT;
+
+//! Get the value of the provided key from the FOVE config
+/*!
+	\param key The key name of the value to retrieve, null-terminated and in UTF-8
+	\param outValue The value associated to the key if found.
+	\return #Fove_ErrorCode_None if the value was successfully retrieved\n
+	        #Fove_ErrorCode_API_NullInPointer if key or outValue is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the queried key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a float
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_getValue_float(const char* key, float* outValue) FOVE_NOEXCEPT;
+
+//! Get the value of the provided key from the FOVE config
+/*!
+	\param key The key name of the value to retrieve, null-terminated and in UTF-8
+	\param callback A function pointer to a function that will be called once if the key is present
+	\param callbackData An arbitrary pointer passed to the callback
+	\return #Fove_ErrorCode_None if the value was successfully retrieved\n
+	        #Fove_ErrorCode_API_NullInPointer if key or outValue is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the queried key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a string
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_getValue_string(const char* key, void(FOVE_CALLBACK* callback)(const char* value, void* callbackData), void* callbackData) FOVE_NOEXCEPT;
+
+//! Set the value of the provided key to the FOVE config
+/*!
+	\param key The key name of the value to set, null-terminated and in UTF-8
+	\param value The new value to set as the key value.
+	\return #Fove_ErrorCode_None if the value was successfully set\n
+	        #Fove_ErrorCode_API_NullInPointer if key is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the provided key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a boolean
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_setValue_bool(const char* key, bool value) FOVE_NOEXCEPT;
+
+//! Set the value of the provided key to the FOVE config
+/*!
+	\param key The key name of the value to set, null-terminated and in UTF-8
+	\param value The new value to set as the key value.
+	\return #Fove_ErrorCode_None if the value was successfully set\n
+	        #Fove_ErrorCode_API_NullInPointer if key is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the provided key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not an int
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_setValue_int(const char* key, int value) FOVE_NOEXCEPT;
+
+//! Set the value of the provided key to the FOVE config
+/*!
+	\param key The key name of the value to set, null-terminated and in UTF-8
+	\param value The new value to set as the key value.
+	\return #Fove_ErrorCode_None if the value was successfully set\n
+	        #Fove_ErrorCode_API_NullInPointer if key is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the provided key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a float
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_setValue_float(const char* key, float value) FOVE_NOEXCEPT;
+
+//! Set the value of the provided key to the FOVE config
+/*!
+	\param key The key name of the value to set, null-terminated and in UTF-8
+	\param value The new value to set as the key value.
+	\return #Fove_ErrorCode_None if the value was successfully set\n
+	        #Fove_ErrorCode_API_NullInPointer if key or value is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the provided key doesn't exist\n
+	        #Fove_ErrorCode_Config_TypeMismatch if the key exist but its value type is not a string
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_setValue_string(const char* key, const char* value) FOVE_NOEXCEPT;
+
+//! Reset the value of the provided key to its default value
+/*!
+	\param key The key name of the value to reset, null-terminated and in UTF-8
+	\return #Fove_ErrorCode_None if the value was successfully reset\n
+	        #Fove_ErrorCode_API_NullInPointer if key is null\n
+	        #Fove_ErrorCode_Config_DoesntExist if the provided key doesn't exist
+*/
+FOVE_EXPORT Fove_ErrorCode fove_Config_clearValue(const char* key) FOVE_NOEXCEPT;
 
 /////////////////////////////////////////////////////////////////////////////////
 // Fove C++ API -----------------------------------------------------------------
@@ -1209,6 +1998,7 @@ inline constexpr Fove_ClientCapabilities operator~(Fove_ClientCapabilities a) { 
 inline constexpr Fove_ResearchCapabilities operator|(Fove_ResearchCapabilities a, Fove_ResearchCapabilities b) { return static_cast<Fove_ResearchCapabilities>(static_cast<int>(a) | static_cast<int>(b)); }
 inline constexpr Fove_ResearchCapabilities operator&(Fove_ResearchCapabilities a, Fove_ResearchCapabilities b) { return static_cast<Fove_ResearchCapabilities>(static_cast<int>(a) & static_cast<int>(b)); }
 inline constexpr Fove_ResearchCapabilities operator~(Fove_ResearchCapabilities a) { return static_cast<Fove_ResearchCapabilities>(~static_cast<int>(a)); }
+inline constexpr Fove_ObjectGroup operator|(Fove_ObjectGroup a, Fove_ObjectGroup b) { return static_cast<Fove_ObjectGroup>(static_cast<int>(a) | static_cast<int>(b)); }
 /// @endcond
 
 namespace FOVE_CXX_NAMESPACE
@@ -1231,9 +2021,9 @@ struct Stereo
 */
 struct HeadsetHardwareInfo
 {
-	std::string serialNumber; //!< Serial number in UTF8
-	std::string manufacturer; //!< Manufacturer info in UTF8
-	std::string modelName;    //!< Model name in UTF8
+	std::string serialNumber; //!< Serial number in UTF-8
+	std::string manufacturer; //!< Manufacturer info in UTF-8
+	std::string modelName;    //!< Model name in UTF-8
 };
 
 //! Exception type that is thrown when an error is ignored in the FOVE API
@@ -1290,7 +2080,7 @@ public:
 	}
 
 	//! Returns the value if isValid() is true, otherwise throws
-	const Value& getValue() const &
+	const Value& getValue() const&
 	{
 		throwIfInvalid();
 		return m_value;
@@ -1350,6 +2140,48 @@ public:
 	{
 		Value ret{};
 		const ErrorCode err = (*call)(args..., &ret.l, &ret.r);
+		if (err != ErrorCode::None)
+			return err;
+		return ret;
+	}
+
+	//! Variant of invoke for functions that return a client-side-allocated array
+	template <typename Call, typename... Args>
+	static Result invokeVector(Call* call, const Args... args)
+	{
+		auto helper = [](auto item, void* const ptr) {
+			Value& vec = *reinterpret_cast<Value*>(ptr);
+			vec.emplace_back(item);
+		};
+
+		Value vec;
+		const ErrorCode err = (*call)(args..., helper, &vec);
+		if (err != ErrorCode::None)
+			return err;
+
+		return vec;
+	}
+
+	//! Variant of invoke for functions that return a client-provided callback
+	template <typename Call, typename Callback, typename... Args>
+	static Result<> invokeCallback(Call* call, Callback&& callback, const Args... args)
+	{
+		using CallbackPtr = decltype(&callback);
+		auto thunk = [](auto value, void* ptr) {
+			Callback&& callback = std::move(*reinterpret_cast<CallbackPtr>(ptr));
+			std::forward<Callback>(callback)(value);
+		};
+
+		const ErrorCode err = (*call)(args..., thunk, static_cast<CallbackPtr>(&callback));
+		return err;
+	}
+
+	//! Variant of invoke for functions that get the value through a callback
+	template <typename Call, typename... Args>
+	static Result invokeThroughCallback(Call* call, const Args... args)
+	{
+		Value ret{};
+		const ErrorCode err = invokeCallback(call, [&](const Value& str) { ret = str; }, args...).getError();
 		if (err != ErrorCode::None)
 			return err;
 		return ret;
@@ -1493,7 +2325,7 @@ public:
 /*!
 	This class is a wrapper around the C API's Fove_ResearchHeadset.
 
-	It is not intended for use in general-purpose software, eg. games, but rather for a labratory environment.
+	It is not intended for use in general-purpose software, eg. games, but rather for a laboratory environment.
 
 	Using this class will limit the backwards compatibility of your program.
 */
@@ -1558,13 +2390,19 @@ public:
 		return Result<ResearchGaze>::invoke(&fove_ResearchHeadset_getGaze, m_object);
 	}
 
-	//! Wraps fove_Headset_turnOnPositionTrackingLEDs()
+	//! Wraps fove_ResearchHeadset_getEyeShapes()
+	Result<Stereo<EyeShape>> getEyeShapes()
+	{
+		return Result<Stereo<EyeShape>>::invokeStereo(&fove_ResearchHeadset_getEyeShapes, m_object);
+	}
+
+	//! Wraps fove_ResearchHeadset_turnOnPositionTrackingLEDs()
 	Result<> turnOnPositionTrackingLEDs()
 	{
 		return fove_ResearchHeadset_turnOnPositionTrackingLEDs(m_object);
 	}
 
-	//! Wraps fove_Headset_turnOffPositionTrackingLEDs()
+	//! Wraps fove_ResearchHeadset_turnOffPositionTrackingLEDs()
 	Result<> turnOffPositionTrackingLEDs()
 	{
 		return fove_ResearchHeadset_turnOffPositionTrackingLEDs(m_object);
@@ -1613,7 +2451,7 @@ public:
 		return *this;
 	}
 
-	//! Creates a new headset object with the given capabitilies
+	//! Creates a new headset object with the given capabilities
 	static Result<Headset> create(const ClientCapabilities capabilities)
 	{
 		const Result<Fove_Headset*> ret = Result<Fove_Headset*>::invoke(fove_createHeadset, capabilities);
@@ -1772,6 +2610,12 @@ public:
 		return Result<bool>::invoke(fove_Headset_isEyeTrackingCalibrating, m_object);
 	}
 
+	//! Wraps fove_Headset_isHmdAdjustmentGuiVisible()
+	Result<bool> isHmdAdjustmentGuiVisible()
+	{
+		return Result<bool>::invoke(fove_Headset_isHmdAdjustmentGuiVisible, m_object);
+	}
+
 	//! Wraps fove_Headset_isEyeTrackingReady()
 	Result<bool> isEyeTrackingReady()
 	{
@@ -1782,6 +2626,12 @@ public:
 	Result<bool> isMotionReady()
 	{
 		return Result<bool>::invoke(fove_Headset_isMotionReady, m_object);
+	}
+
+	//! Wraps fove_Headset_isUserPresent()
+	Result<bool> isUserPresent()
+	{
+		return Result<bool>::invoke(fove_Headset_isUserPresent, m_object);
 	}
 
 	//! Wraps fove_Headset_tareOrientationSensor()
@@ -1833,21 +2683,21 @@ public:
 	}
 
 	//! Wraps fove_Headset_getIOD()
-	Result<float> getIOD()
+	Result<float> getRenderIOD()
 	{
-		return Result<float>::invoke(&fove_Headset_getIOD, m_object);
-	}
-
-	//! Wraps fove_Headset_ensureEyeTrackingCalibration()
-	Result<> ensureEyeTrackingCalibration()
-	{
-		return fove_Headset_ensureEyeTrackingCalibration(m_object);
+		return Result<float>::invoke(&fove_Headset_getRenderIOD, m_object);
 	}
 
 	//! Wraps fove_Headset_startEyeTrackingCalibration()
-	Result<> startEyeTrackingCalibration(const bool restartIfRunning)
+	Result<> startEyeTrackingCalibration(const Fove_CalibrationOptions& options = {})
 	{
-		return fove_Headset_startEyeTrackingCalibration(m_object, restartIfRunning);
+		return fove_Headset_startEyeTrackingCalibration(m_object, &options);
+	}
+
+	//! Wraps fove_Headset_tickEyeTrackingCalibration()
+	Result<> tickEyeTrackingCalibration(const bool restartIfRunning, const float dt, bool isVisible, Fove_CalibrationData& outData)
+	{
+		return fove_Headset_tickEyeTrackingCalibration(m_object, dt, isVisible, &outData);
 	}
 
 	//! Wraps fove_Headset_stopEyeTrackingCalibration()
@@ -1855,7 +2705,180 @@ public:
 	{
 		return fove_Headset_stopEyeTrackingCalibration(m_object);
 	}
+
+	//! Wraps fove_Headset_registerGazableObject()
+	Result<> registerGazableObject(const Fove_GazableObject& object)
+	{
+		return fove_Headset_registerGazableObject(m_object, &object);
+	}
+
+	//! Wraps fove_Headset_updateGazableObject()
+	Result<> updateGazableObject(const int objectId, const Fove_ObjectPose& objectPose)
+	{
+		return fove_Headset_updateGazableObject(m_object, objectId, &objectPose);
+	}
+
+	//! Wraps fove_Headset_removeGazableObject()
+	Result<> removeGazableObject(const int objectId)
+	{
+		return fove_Headset_removeGazableObject(m_object, objectId);
+	}
+
+	//! Wraps fove_Headset_registerCameraObject()
+	Result<> registerCameraObject(const Fove_CameraObject& camera)
+	{
+		return fove_Headset_registerCameraObject(m_object, &camera);
+	}
+
+	//! Wraps fove_Headset_updateCameraObject()
+	Result<> updateCameraObject(const int cameraId, const Fove_ObjectPose& pose)
+	{
+		return fove_Headset_updateCameraObject(m_object, cameraId, &pose);
+	}
+
+	//! Wraps fove_Headset_removeCameraObject()
+	Result<> removeCameraObject(const int cameraId)
+	{
+		return fove_Headset_removeCameraObject(m_object, cameraId);
+	}
+
+	//! Wraps fove_Headset_getGazeCastPolicy()
+	Result<> getGazeCastPolicy(Fove_GazeCastPolicy& policy)
+	{
+		return fove_Headset_getGazeCastPolicy(m_object, &policy);
+	}
+
+	//! Wraps fove_Headset_getGazeCastPolicy()
+	Result<> setGazeCastPolicy(const Fove_GazeCastPolicy policy)
+	{
+		return fove_Headset_setGazeCastPolicy(m_object, policy);
+	}
+
+	//! Wraps fove_Headset_createProfile()
+	Result<> createProfile(const std::string& name)
+	{
+		return fove_Headset_createProfile(m_object, name.c_str());
+	}
+
+	//! Wraps fove_Headset_renameProfile()
+	Result<> renameProfile(const std::string& oldName, const std::string& newName)
+	{
+		return fove_Headset_renameProfile(m_object, oldName.c_str(), newName.c_str());
+	}
+
+	//! Wraps fove_Headset_deleteProfile()
+	Result<> deleteProfile(const std::string& profileName)
+	{
+		return fove_Headset_deleteProfile(m_object, profileName.c_str());
+	}
+
+	//! Wraps fove_Headset_listProfiles()
+	template <typename Callback>
+	Result<> listProfiles(Callback&& callback)
+	{
+		return Result<std::string>::invokeCallback(&fove_Headset_listProfiles, std::forward<Callback>(callback), m_object);
+	}
+
+	//! Wraps fove_Headset_listProfiles()
+	Result<std::vector<std::string>> listProfiles()
+	{
+		return Result<std::vector<std::string>>::invokeVector(&fove_Headset_listProfiles, m_object);
+	}
+
+	//! Wraps fove_Headset_setCurrentProfile()
+	Result<> setCurrentProfile(const std::string& profileName)
+	{
+		return fove_Headset_setCurrentProfile(m_object, profileName.c_str());
+	}
+
+	//! Wraps fove_Headset_getCurrentProfile()
+	template <typename Callback>
+	Result<> getCurrentProfile(Callback&& callback)
+	{
+		return Result<std::string>::invokeCallback(&fove_Headset_getCurrentProfile, std::forward<Callback>(callback), m_object);
+	}
+
+	//! Wraps fove_Headset_getCurrentProfile()
+	Result<std::string> getCurrentProfile()
+	{
+		return Result<std::string>::invokeThroughCallback(&fove_Headset_getCurrentProfile, m_object);
+	}
+
+	//! Wraps fove_Headset_getProfileDataPath()
+	template <typename Callback>
+	Result<> getProfileDataPath(const std::string& profileName, Callback&& callback)
+	{
+		return Result<std::string>::invokeCallback(&fove_Headset_getProfileDataPath, std::forward<Callback>(callback), m_object, profileName.c_str());
+	}
+
+	//! Wraps fove_Headset_getProfileDataPath()
+	Result<std::string> getProfileDataPath(const std::string& profileName)
+	{
+		return Result<std::string>::invokeThroughCallback(&fove_Headset_getProfileDataPath, m_object, profileName.c_str());
+	}
 };
+
+// Wrapper for the fove_Config APIs
+namespace Details
+{
+
+template<typename T>
+struct ConfigHelperStruct
+{
+	static_assert(sizeof(T) == sizeof(T) + 1, "You invoked setConfigValue or getConfigValue with a type other than bool/float/int/string");
+};
+
+template<>
+struct ConfigHelperStruct<bool>
+{
+	constexpr static auto set = &fove_Config_setValue_bool;
+	constexpr static auto get = &fove_Config_getValue_bool;
+};
+
+template<>
+struct ConfigHelperStruct<int>
+{
+	constexpr static auto set = &fove_Config_setValue_int;
+	constexpr static auto get = &fove_Config_getValue_int;
+};
+
+template<>
+struct ConfigHelperStruct<float>
+{
+	constexpr static auto set = &fove_Config_setValue_float;
+	constexpr static auto get = &fove_Config_getValue_float;
+};
+
+} // namespace Details
+
+template <typename T>
+Result<T> getConfigValue(const std::string& key)
+{
+	return Result<T>::invoke(Details::ConfigHelperStruct<T>::get, key.c_str());
+}
+
+template <>
+inline Result<std::string> getConfigValue(const std::string& key)
+{
+	return Result<std::string>::invokeThroughCallback(&fove_Config_getValue_string, key.c_str());
+}
+
+template <typename T>
+Result<> setConfigValue(const std::string& key, const T& value)
+{
+	return Details::ConfigHelperStruct<T>::set(key.c_str(), value);
+}
+
+template <>
+inline Result<> setConfigValue(const std::string& key, const std::string& value)
+{
+	return fove_Config_setValue_string(key.c_str(), value.c_str());
+}
+
+inline Result<> clearConfigValue(const std::string& key)
+{
+	return fove_Config_clearValue(key.c_str());
+}
 
 //! Wraps fove_logText()
 inline Result<> logText(const LogLevel level, const std::string& utf8Text)
