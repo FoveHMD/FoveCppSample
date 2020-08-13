@@ -133,25 +133,6 @@ Fove::Matrix44 operator*(const Fove::Matrix44& m1, const Fove::Matrix44& m2)
 	return ret;
 }
 
-bool RaySphereCollision(const Fove::Ray ray, const Fove::Vec3 sphereCenter, const float sphereRadius)
-{
-	// Check if the sphere is behind the ray
-	const Fove::Vec3 rayToCenter = sphereCenter - ray.origin;
-	const float d = Dot(ray.direction, rayToCenter);
-	if (d <= 0)
-		return false;
-
-	// Find the closest point on the ray to the sphere
-	// This assumes the ray direction is normalized
-	const Fove::Vec3 closestPoint = ray.direction * d;
-
-	// Check if the distance to the closest point is within the radius
-	// Squared values are used to avoid doing a square root to get the distance
-	const float radiusSquared = sphereRadius * sphereRadius;
-	const float distanceSquared = DistanceSquared(closestPoint, rayToCenter);
-	return distanceSquared <= radiusSquared;
-}
-
 string GetErrorString(const ErrorType error) noexcept try {
 	string ret = to_string(error);
 

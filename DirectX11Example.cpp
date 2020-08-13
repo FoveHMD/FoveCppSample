@@ -310,6 +310,40 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		throw runtime_error("Unable to create constant buffer: " + HResultToString(err));
 	deviceContext->VSSetConstantBuffers(0, 1, BindInputArray(constantBuffer));
 
+	// Register all objects with FOVE SceneAware
+	// This allows FOVE to handle all the detection of which object you're looking at
+	// Object picking can be done manually if needed, using the gaze vectors
+	// However, we recommending using the FOVE API, as the additional scene info can increase the accuracy of ET
+	constexpr int cameraId = 9999; // Any arbitrary int not used by the objects
+	{
+		// Setup camera
+		// Posiiton will be updated each frame in the main loop
+		Fove::CameraObject cam;
+		cam.id = 9999;
+		CheckError(headset.registerCameraObject(cam), "registerCameraObject");
+
+		// This can also be done manually if needed, using the gaze vectors,
+		// but we recommend using the FOVE API, as the additional scene info can increase the accuracy of ET
+		constexpr size_t numSphereFloats = sizeof(collisionSpheres) / sizeof(float);
+		static_assert(numSphereFloats % 5 == 0, "Invalid collision sphere format");
+		constexpr size_t numSpheres = numSphereFloats / 5;
+		for (size_t i = 0; i < numSpheres; ++i) {
+			const float selectionid = collisionSpheres[i * 5 + 0];
+
+			Fove::ObjectCollider collider;
+			collider.center = Fove::Vec3 { collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4] };
+			collider.shapeType = Fove::ColliderType::Sphere;
+			collider.shapeDefinition.sphere.radius = collisionSpheres[i * 5 + 1];
+
+			Fove::GazableObject object;
+			object.colliderCount = 1;
+			object.colliders = &collider;
+			object.group = Fove::ObjectGroup::Group0; // Groups allows masking of different objects to difference cameras (not needed here)
+			object.id = static_cast<int>(collisionSpheres[i * 5 + 0]);
+			CheckError(headset.registerGazableObject(object), "registerGazableObject");
+		}
+	}
+
 	// Main loop
 	Fove::Matrix44 cameraMatrix; // Stores the camera translation used each frame
 	while (true) {
@@ -331,43 +365,10 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 				}
 			}
 
-			// Compute selection based on eye gaze
-			const Fove::Result<Fove::GazeConvergenceData> gazeOrError = headset.getGazeConvergence();
-			if (gazeOrError.isValid()) {
-				// Get the eye ray. The FOVE SDK will return the better of the two eye rays here
-				// For now we rely exclusively on the ray. In the future, as convergence distance
-				// reporting becomes more accurate, we can use it to distinguish ray-hits by distance
-				Fove::Ray ray = gazeOrError->ray;
-
-				// Since the convergence ray does not include the headset orienation,
-				// or any other transforms we made such as the player height transform,
-				// we need to adjust it by the camera matrix from last frame.
-				// Since the last-frame cameraMatrix represents what is actually on screen,
-				// it's a good indicator of what the user is looking at
-				// It is also possible to just recompute it from the old pose, or fetch a new pose.
-				//cameraMatrix = TranslationMatrix(0, playerHeight, 0);
-				ray.origin = TransformPoint(cameraMatrix, ray.origin, 1);
-				ray.direction = TransformPoint(cameraMatrix, ray.direction, 0); // 0 indicates we get rotation but no offset
-
-				// Each selectable model in the scene is represented by a sphere
-				// Having a more abstract collision shape than the actual polygon structure helps with accuracy
-				// Each sphere is made of 5 floats: selectionid, radius, centerx, centery, centerz
-				constexpr size_t numSphereFloats = sizeof(collisionSpheres) / sizeof(float);
-				static_assert(numSphereFloats % 5 == 0, "Invalid collision sphere format");
-				constexpr size_t numSpheres = numSphereFloats / 5;
-				for (size_t i = 0; i < numSpheres; ++i) {
-					// Get the parameters of this sphere
-					const float selectionid = collisionSpheres[i * 5 + 0];
-					const float radius = collisionSpheres[i * 5 + 1];
-					const Fove::Vec3 center { collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4] };
-
-					// Determine if this sphere intersects
-					if (RaySphereCollision(ray, center, radius)) {
-						selection = selectionid;
-						break; // Break upon the first hit
-					}
-				}
-			}
+			// Determine the selection object based on what's being gazed at
+			if (const Fove::Result<Fove::GazeConvergenceData> gazeOrError = headset.getGazeConvergence())
+				if (gazeOrError->gazedObjectId != fove_ObjectIdInvalid)
+					selection = static_cast<float>(gazeOrError->gazedObjectId);
 		}
 
 		// Wait for the compositor to tell us to render
@@ -445,6 +446,14 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		const HRESULT err = swapChain->Present(0, 0);
 		if (FAILED(err))
 			throw runtime_error("Unable to present: " + HResultToString(err));
+
+		// Update camera position used by FOVE gaze detection
+		Fove::ObjectPose camPose;
+		camPose.position = pose.position;
+		camPose.position.y += playerHeight;
+		camPose.velocity = pose.velocity;
+		camPose.rotation = pose.orientation;
+		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
 } catch (const exception& e) {
 	// Display any error as a popup box then exit the program

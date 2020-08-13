@@ -13,6 +13,13 @@ inline void CheckError(const Fove::ErrorCode code, const char* const data)
 		throw std::runtime_error("Unable to get " + std::string(data) + ": " + std::to_string(static_cast<int>(code)));
 }
 
+// Helper function to throw an exception if the passed error code is not None
+template <typename Type>
+inline void CheckError(const Fove::Result<Type> err, const char* const data)
+{
+	return CheckError(err.getError(), data);
+}
+
 // Helper function, which will throw if the result of a Fove call returns error
 // Use like this: const auto MyObject = CheckError(Fove->GetSomeObject(...));
 // This works on any function that returns an error via a .error field in the return object
@@ -44,7 +51,6 @@ inline float MagnitudeSquared(Fove::Vec3 v) { return v.x * v.x + v.y * v.y + v.z
 inline float Magnitude(Fove::Vec3 v) { return std::sqrt(MagnitudeSquared(v)); }
 inline float DistanceSquared(Fove::Vec3 v1, Fove::Vec3 v2) { return MagnitudeSquared(v1 - v2); }
 inline Fove::Vec3 Normalize(Fove::Vec3 v) { return v / Magnitude(v); }
-bool RaySphereCollision(Fove::Ray ray, Fove::Vec3 sphereCenter, float sphereRadius);
 
 // Error utilities
 using ErrorType = unsigned long;                      // Equivalent to DWORD on windows
