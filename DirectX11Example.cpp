@@ -155,11 +155,11 @@ void RenderScene(ID3D11DeviceContext& deviceContext, ID3D11Buffer& constantsBuff
 	deviceContext.Draw(numVerts, 0);
 }
 
-// Platform-independant main program entry point and loop
+// Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
 void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Connect to headset, specifying the capabilities we will use
-	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::Orientation | Fove::ClientCapabilities::Position | Fove::ClientCapabilities::Gaze).getValue();
+	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::OrientationTracking | Fove::ClientCapabilities::PositionTracking | Fove::ClientCapabilities::EyeTracking | Fove::ClientCapabilities::GazedObjectDetection).getValue();
 
 	// Connect to compositor
 	Fove::Compositor compositor = headset.createCompositor().getValue();
@@ -366,9 +366,10 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			}
 
 			// Determine the selection object based on what's being gazed at
-			if (const Fove::Result<Fove::GazeConvergenceData> gazeOrError = headset.getGazeConvergence())
-				if (gazeOrError->gazedObjectId != fove_ObjectIdInvalid)
-					selection = static_cast<float>(gazeOrError->gazedObjectId);
+			headset.fetchEyeTrackingData();
+			if (const Fove::Result<int> gazeOrError = headset.getGazedObjectId())
+				if (gazeOrError.getValue() != fove_ObjectIdInvalid)
+					selection = static_cast<float>(gazeOrError.getValue());
 		}
 
 		// Wait for the compositor to tell us to render

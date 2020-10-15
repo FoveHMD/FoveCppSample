@@ -25,6 +25,20 @@ libFoveClient.so    -> *Alpha* version of the Linux shared library. Many things 
 
 == ChangeLog ==
 
+v1.0.0
+- Massive API overhaul
+- Research API is gone, functionality merged into regular API
+- Eye tracking data functions are split into various individual function calls rather than returned together in a struct
+- Eye tracking and IMU data is now cached across function calls for frame coherency. You must call a fetch function each frame to update the cache
+- General cleanup to error list
+- Error codes added for data quality issues such as Data_LowAccuracy and Data_Unreliable. These errors are very non-fatal, so make sure to check for them
+- Added an API to know if the headset adjustment GUI was hidden due to timeout
+- Added an API to know if the user was wearing glasses at the moment of the calibration
+- Added an API for eye shape
+- Added an API for eye torsion
+- Added OnePointWithNoGlassesSpiralWithGlasses calibration type
+- Added API for eye-by-eye calibration
+
 v0.18.0
 - Added new calibration options: eye-by-eye calibration, one-point calibration and lazy calibration (replace previously existing EnsureEyeTrackingCalibration)
 - Added API to tick and be able to render the calibration process from a client application

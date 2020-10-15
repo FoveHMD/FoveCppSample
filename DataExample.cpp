@@ -32,6 +32,17 @@ bool checkError(const Fove::ErrorCode errorCode)
 		cerr << "No update" << endl;
 		break;
 
+	case Fove::ErrorCode::Data_Unreliable:
+		// This happens when the user is not present, closes the eye or the headset is not properly positioned
+		// => here we just ignore the data
+		break;
+
+	case Fove::ErrorCode::Data_LowAccuracy:
+		// This happens when the user is looking at extreme positions or closing the eyes
+		// Depending of the application you may want to ignore this data
+		// => here we just print it the same way as reliable data
+		return true;
+
 	default:
 		// Less common errors are simply logged with their numeric value
 		cerr << "Error #" << EnumToUnderlyingValue(errorCode) << endl;
@@ -44,14 +55,14 @@ bool checkError(const Fove::ErrorCode errorCode)
 int main() try {
 	// Create the Headset object, taking the capabilities we need in our program
 	// Different capabilities may enable different hardware or software, so use only the capabilities that are needed
-	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::Gaze).getValue();
+	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::EyeTracking).getValue();
 
 	// Loop indefinitely
 	while (true) {
 		// Wait for the next eye frame
 		// The current thread will sleep until a new frame comes in
 		// This allows us to capture data at the full frame rate of eye tracking and not use too much CPU
-		const Fove::Result<> waitResult = headset.waitForNextEyeFrame();
+		const auto waitResult = headset.waitAndFetchNextEyeTrackingData();
 		if (!checkError(waitResult.getError())) {
 			// Sleep for a second in the event of failure
 			// If the wait function fails, it might have returned immediately, and we may eat up 100% of a CPU core if we don't sleep manually
@@ -60,18 +71,32 @@ int main() try {
 			continue; // Skip getting the gaze vectors
 		}
 
-		// Fetch the left gaze vector
-		// You can swap this out with other IFVRHeadset functions to get other types of data
-		const Fove::Result<Fove::Stereo<Fove::GazeVector>> gaze = headset.getGazeVectors();
-		if (checkError(gaze.getError())) {
-			// If there was no error, we are allowed to access the other members of the struct
-			cout << "Gaze vectors:   L(" << fixed << setprecision(3)
-			     << setw(5) << gaze.getValue().l.vector.x << ", "
-			     << setw(5) << gaze.getValue().l.vector.y << ", "
-			     << setw(5) << gaze.getValue().l.vector.z << ")   R("
-			     << setw(5) << gaze.getValue().r.vector.x << ", "
-			     << setw(5) << gaze.getValue().r.vector.y << ", "
-			     << setw(5) << gaze.getValue().r.vector.z << ')' << endl;
+		// Below we print data
+		// Feel free to mess around and call other data query functions,
+		// but remember to add the capabilities as needed
+
+		// Left gaze vector
+		const auto leftGaze = headset.getGazeVector(Fove::Eye::Left);
+		cout << "Gaze vectors:   L(" << fixed << setprecision(3);
+		if (leftGaze.isValid()) {
+			cout
+			    << setw(5) << leftGaze.getValue().x << ", "
+			    << setw(5) << leftGaze.getValue().y << ", "
+			    << setw(5) << leftGaze.getValue().z;
+		} else {
+			cout << "error: " << static_cast<int>(leftGaze.getError());
+		}
+
+		// Right gaze vector
+		const auto rightGaze = headset.getGazeVector(Fove::Eye::Right);
+		cout << ")   R(";
+		if (rightGaze.isValid()) {
+			cout
+			    << setw(5) << rightGaze.getValue().x << ", "
+			    << setw(5) << rightGaze.getValue().y << ", "
+			    << setw(5) << rightGaze.getValue().z << ')' << endl;
+		} else {
+			cout << "error: " << static_cast<int>(rightGaze.getError()) << ')' << endl;
 		}
 	}
 } catch (const exception& e) {
