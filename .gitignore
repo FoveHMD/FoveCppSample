@@ -1,2 +1,6 @@
-# For Qt Creator IDE
+# Ignore IDE files
 CMakeLists.txt.user*
+.vscode
+
+# Ignore build folder
+build
