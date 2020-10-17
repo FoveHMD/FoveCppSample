@@ -31,7 +31,7 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 	windowClass.lpszClassName = L"FoveWindowClass";
 	windowClass.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
 	if (!RegisterClassEx(&windowClass))
-		throw runtime_error("Unable to register window class: " + GetLastErrorAsString());
+		throw "Unable to register window class: " + GetLastErrorAsString();
 
 	// Create window
 	RECT r = { 0, 0, windowSizeX, windowSizeY };
@@ -40,7 +40,7 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 	    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
 	    CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, nativeLaunchInfo.instance, nullptr);
 	if (!window)
-		throw runtime_error("Unable to create window: " + GetLastErrorAsString());
+		throw "Unable to create window: " + GetLastErrorAsString();
 
 	// Display the window on screen
 	ShowWindow(window, nativeLaunchInfo.cmdShow);

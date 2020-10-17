@@ -96,7 +96,7 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 			}
 
 			// Throw an error including the log message
-			throw runtime_error("Failed to compile shader: " + log);
+			throw "Failed to compile shader: " + log;
 		}
 
 		return shader;
@@ -131,7 +131,7 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 		}
 
 		// Throw an error including the log message
-		throw runtime_error("Failed to link shader: " + log);
+		throw "Failed to link shader: " + log;
 	}
 
 	// Detach the shaders after a successful link (optional)
@@ -177,7 +177,7 @@ RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
 	// Check that the framebuffer we created is complete
 	// If this fails, it means we've not set up the frame buffers correctly and can't render to it
 	if (GL_FRAMEBUFFER_COMPLETE != GlCall(glCheckFramebufferStatus, GL_FRAMEBUFFER))
-		throw runtime_error("Framebuffer is incomplete");
+		throw "Framebuffer is incomplete";
 
 	return ret;
 }
@@ -215,7 +215,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// This function checks for error and then converts to unsigned
 	const auto Check = [](const GLint location, const char* const name) {
 		if (0 > location)
-			throw runtime_error("Unable to find location of "s + name);
+			throw "Unable to find location of "s + name;
 		return location;
 	};
 
@@ -480,7 +480,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		camPose.rotation = pose.orientation;
 		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
-} catch (const exception& e) {
+} catch (...) {
 	// Display any error as a popup box then exit the program
-	ShowErrorBox(e.what());
+	ShowErrorBox("Error: " + currentExceptionMessage());
 }

@@ -99,10 +99,10 @@ int main() try {
 			cout << "error: " << static_cast<int>(rightGaze.getError()) << ')' << endl;
 		}
 	}
-} catch (const exception& e) {
+} catch (...) {
 
 	// If an exception is thrown for any reason, log it and exit
 	// The FOVE api is designed not to throw externally, but the standard library can
-	cerr << "Error: " << e.what() << endl;
+	cerr << "Error: " << currentExceptionMessage() << endl;
 	return EXIT_FAILURE;
 }

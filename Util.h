@@ -30,6 +30,13 @@ Type&& CheckError(Type&& object, const char* const data)
 	return std::move(object);
 }
 
+// Exceptions
+// We use a simple exception mechanism for these tutorials that just throws strings
+// This is to keep the code as simple as possible without dealing with error returns or custom exception types
+// This function, when called from a catch statement, will return the text of an exception, either a char*, std::string, or std::exception
+// The error can the be logged, put in a popup error, etc, or amended for more detail and rethrown
+std::string currentExceptionMessage();
+
 // Conversions between UTF-8 and UTF-16
 std::string ToUtf8(const std::wstring& utf16);
 std::wstring ToUtf16(const std::string& str);

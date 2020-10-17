@@ -232,9 +232,9 @@ public:
 		name_.reset();
 
 		GlCall(GlResourceInfo::DelFunc, name);
-	} catch (const std::exception& e) {
+	} catch (...) {
 		// If failing to clear a resource, log an error but consider it non-fatal
-		std::cerr << "GlResource error: " << e.what() << std::endl;
+		std::cerr << "GlResource error: " << currentExceptionMessage() << std::endl;
 	}
 
 	void operator=(GlResource&& resource)

@@ -47,7 +47,7 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 	CComPtr<IDXGIFactory> factory;
 	HRESULT err = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
 	if (FAILED(err) || !factory)
-		throw runtime_error("Unable to create IDXGIFactory1: " + HResultToString(err));
+		throw "Unable to create IDXGIFactory1: " + HResultToString(err);
 
 	// Loop through existing adapters
 	for (UINT i = 0;; ++i) {
@@ -55,15 +55,15 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 		CComPtr<IDXGIAdapter> adapter;
 		err = factory->EnumAdapters(i, &adapter);
 		if (err == DXGI_ERROR_NOT_FOUND)
-			throw runtime_error("Unable to find adapter: " + to_string(adapterId.highPart) + " " + to_string(adapterId.lowPart));
+			throw "Unable to find adapter: " + to_string(adapterId.highPart) + " " + to_string(adapterId.lowPart);
 		else if (FAILED(err) || !adapter)
-			throw runtime_error("Failed to enumerate adapters: " + HResultToString(err));
+			throw "Failed to enumerate adapters: " + HResultToString(err);
 
 		// Get info about this adapter
 		DXGI_ADAPTER_DESC adapterDesc {};
 		err = adapter->GetDesc(&adapterDesc);
 		if (FAILED(err))
-			throw runtime_error("Unable to get adapter description: " + HResultToString(err));
+			throw "Unable to get adapter description: " + HResultToString(err);
 
 		// If this is the right adapter, we are done
 		if (adapterDesc.AdapterLuid.HighPart == adapterId.highPart && adapterDesc.AdapterLuid.LowPart == adapterId.lowPart)
@@ -87,7 +87,7 @@ CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext, 
 	    nullptr,
 	    &deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
-		throw runtime_error("Unable to create device: " + HResultToString(err));
+		throw "Unable to create device: " + HResultToString(err);
 
 	return device;
 }
@@ -101,18 +101,18 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11D
 		CComPtr<IDXGIDevice> dxgiDevice;
 		HRESULT err = device.QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
 		if (FAILED(err) || !dxgiDevice)
-			throw runtime_error("Unable to get IDXGIDevice from ID3D11Device: " + HResultToString(err));
+			throw "Unable to get IDXGIDevice from ID3D11Device: " + HResultToString(err);
 
 		// Get IDXGIAdapter from IDXGIDevice
 		CComPtr<IDXGIAdapter> adapter;
 		err = dxgiDevice->GetAdapter(&adapter);
 		if (FAILED(err) || !adapter)
-			throw runtime_error("Unable to get IDXGIAdapter from IDXGIDevice: " + HResultToString(err));
+			throw "Unable to get IDXGIAdapter from IDXGIDevice: " + HResultToString(err);
 
 		// Get IDXGIFactory2 from IDXGIAdapter
 		err = adapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&factory));
 		if (FAILED(err) || !factory)
-			throw runtime_error("Unable to get IDXGIFactory2: " + HResultToString(err));
+			throw "Unable to get IDXGIFactory2: " + HResultToString(err);
 	}
 
 	// Create swap chain description
@@ -130,13 +130,13 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11D
 	CComPtr<IDXGISwapChain1> swapChain1;
 	HRESULT err = factory->CreateSwapChainForHwnd(&device, nativeWindow.window, &swapChainDesc, nullptr, nullptr, &swapChain1);
 	if (FAILED(err) || !swapChain1)
-		throw runtime_error("Unable to create swap chain: " + HResultToString(err));
+		throw "Unable to create swap chain: " + HResultToString(err);
 
 	// Get IDXGISwapChain from IDXGISwapChain1
 	CComPtr<IDXGISwapChain> swapChain;
 	err = swapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChain));
 	if (FAILED(err) || !swapChain)
-		throw runtime_error("Unable to get IDXGISwapChain from IDXGISwapChain1: " + HResultToString(err));
+		throw "Unable to get IDXGISwapChain from IDXGISwapChain1: " + HResultToString(err);
 
 	return swapChain;
 }
@@ -192,13 +192,13 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11Texture2D> backBuffer;
 	HRESULT err = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
 	if (FAILED(err) || !backBuffer)
-		throw runtime_error("Unable to create render target view: " + HResultToString(err));
+		throw "Unable to create render target view: " + HResultToString(err);
 
 	// Create a render target view
 	CComPtr<ID3D11RenderTargetView> renderTargetView;
 	err = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
 	if (FAILED(err) || !renderTargetView)
-		throw runtime_error("Unable to create render target view: " + HResultToString(err));
+		throw "Unable to create render target view: " + HResultToString(err);
 
 	// Create the depth buffer
 	D3D11_TEXTURE2D_DESC descDepth;
@@ -217,7 +217,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11Texture2D> depthBuffer;
 	err = device->CreateTexture2D(&descDepth, nullptr, &depthBuffer);
 	if (FAILED(err) || !depthBuffer)
-		throw runtime_error("Unable to create depth buffer: " + HResultToString(err));
+		throw "Unable to create depth buffer: " + HResultToString(err);
 
 	// Create depth stencil state
 	D3D11_DEPTH_STENCIL_DESC dsDesc;
@@ -228,7 +228,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11DepthStencilState> depthStencilState;
 	err = device->CreateDepthStencilState(&dsDesc, &depthStencilState);
 	if (FAILED(err) || !depthStencilState)
-		throw runtime_error("Unable to create depth stencil state: " + HResultToString(err));
+		throw "Unable to create depth stencil state: " + HResultToString(err);
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
@@ -238,7 +238,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11DepthStencilView> depthStencilView;
 	err = device->CreateDepthStencilView(depthBuffer, &depthStencilViewDesc, &depthStencilView);
 	if (FAILED(err) || !depthStencilView)
-		throw runtime_error("Unable to create depth stencil view " + HResultToString(err));
+		throw "Unable to create depth stencil view " + HResultToString(err);
 
 	// Bind render targets to output-merger stage
 	deviceContext->OMSetRenderTargets(1, BindInputArray(renderTargetView), depthStencilView);
@@ -259,7 +259,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11VertexShader> vertexShader;
 	err = device->CreateVertexShader(g_vert, sizeof(g_vert), nullptr, &vertexShader);
 	if (FAILED(err) || !vertexShader)
-		throw runtime_error("Unable to create vertex shader: " + HResultToString(err));
+		throw "Unable to create vertex shader: " + HResultToString(err);
 	deviceContext->VSSetShader(vertexShader, nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
@@ -269,14 +269,14 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11InputLayout> vertexLayout;
 	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), g_vert, sizeof(g_vert), &vertexLayout);
 	if (FAILED(err) || !vertexLayout)
-		throw runtime_error("Unable to create vertex layout: " + HResultToString(err));
+		throw "Unable to create vertex layout: " + HResultToString(err);
 	deviceContext->IASetInputLayout(vertexLayout);
 
 	// Create and set the pixel shader
 	CComPtr<ID3D11PixelShader> pixelShader;
 	err = device->CreatePixelShader(g_frag, sizeof(g_frag), nullptr, &pixelShader);
 	if (FAILED(err) || !pixelShader)
-		throw runtime_error("Unable to create pixel shader: " + HResultToString(err));
+		throw "Unable to create pixel shader: " + HResultToString(err);
 	deviceContext->PSSetShader(pixelShader, nullptr, 0);
 
 	// Create vertex buffer
@@ -293,7 +293,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11Buffer> vertexBuffer;
 	err = device->CreateBuffer(&vertexBufferDesc, &InitData, &vertexBuffer);
 	if (FAILED(err) || !vertexBuffer)
-		throw runtime_error("Unable to create vertex buffer: " + HResultToString(err));
+		throw "Unable to create vertex buffer: " + HResultToString(err);
 	deviceContext->IASetVertexBuffers(0, 1, BindInputArray(vertexBuffer), BindInputArray<UINT>(sizeof(float) * floatsPerVert), BindInputArray<UINT>(0));
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -307,7 +307,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	CComPtr<ID3D11Buffer> constantBuffer;
 	err = device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
 	if (FAILED(err) || !constantBuffer)
-		throw runtime_error("Unable to create constant buffer: " + HResultToString(err));
+		throw "Unable to create constant buffer: " + HResultToString(err);
 	deviceContext->VSSetConstantBuffers(0, 1, BindInputArray(constantBuffer));
 
 	// Register all objects with FOVE SceneAware
@@ -446,7 +446,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// Present the rendered image to the screen
 		const HRESULT err = swapChain->Present(0, 0);
 		if (FAILED(err))
-			throw runtime_error("Unable to present: " + HResultToString(err));
+			throw "Unable to present: " + HResultToString(err);
 
 		// Update camera position used by FOVE gaze detection
 		Fove::ObjectPose camPose;
@@ -456,7 +456,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		camPose.rotation = pose.orientation;
 		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
-} catch (const exception& e) {
+} catch (...) {
 	// Display any error as a popup box then exit the program
-	ShowErrorBox(e.what());
+	ShowErrorBox("Error: " + currentExceptionMessage());
 }

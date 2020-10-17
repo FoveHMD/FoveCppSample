@@ -44,7 +44,7 @@ void GlCheckError(const char* function)
 	}
 
 	if (!errorStr.empty())
-		throw runtime_error("error in "s + function + ": " + errorStr);
+		throw "error in "s + function + ": " + errorStr;
 }
 
 const char* GlFuncToString(const void* const func)
@@ -113,7 +113,7 @@ NativeOpenGLContext CreateOpenGLContext(NativeWindow& window) try {
 	// This is the GDI+ level context associated with the window for generic windows drawing
 	const HDC deviceContext = GetDC(window.window);
 	if (!deviceContext)
-		throw runtime_error("Unable to get device context from window");
+		throw "Unable to get device context from window";
 
 	// Attribute list
 	PIXELFORMATDESCRIPTOR descriptor;
@@ -131,22 +131,22 @@ NativeOpenGLContext CreateOpenGLContext(NativeWindow& window) try {
 	// Query for a pixel format that fits the attributes we want.
 	const int pixelFormat = ChoosePixelFormat(deviceContext, &descriptor);
 	if (0 == pixelFormat)
-		throw runtime_error("ChoosePixelFormat: " + GetLastErrorAsString());
+		throw "ChoosePixelFormat: " + GetLastErrorAsString();
 
 	// Set the pixel format on the device context
 	if (!SetPixelFormat(deviceContext, pixelFormat, &descriptor))
-		throw runtime_error("SetPixelFormat: " + GetLastErrorAsString());
+		throw "SetPixelFormat: " + GetLastErrorAsString();
 
 	// Create the rendering context
 	// Typically drivers will give us the latest GL compatibility profile that they support
 	// If we want a specific GL version or a core context, we could instead check for and use wglCreateContextAttribsARB extension
 	const HGLRC renderContext = wglCreateContext(deviceContext);
 	if (!renderContext)
-		throw runtime_error("wglCreateContext: " + GetLastErrorAsString());
+		throw "wglCreateContext: " + GetLastErrorAsString();
 
 	// Make the context current for this thread
 	if (!wglMakeCurrent(deviceContext, renderContext))
-		throw runtime_error("wglMakeCurrent: " + GetLastErrorAsString());
+		throw "wglMakeCurrent: " + GetLastErrorAsString();
 #endif
 
 	// Check that our initial OpenGL state has no error
@@ -156,8 +156,8 @@ NativeOpenGLContext CreateOpenGLContext(NativeWindow& window) try {
 	const char* const version = (const char*)GlCall(glGetString, GL_VERSION);
 	cout << "GL Version is: " << (version ? version : "unknown") << endl;
 	return ret;
-} catch (const exception& e) {
-	throw runtime_error("Unable to create GL context: "s + e.what());
+} catch (...) {
+	throw "Unable to create GL context: " + currentExceptionMessage();
 }
 
 void ApplyWindowViewport(NativeWindow& window, NativeOpenGLContext& context)
@@ -174,10 +174,10 @@ void SwapBuffers(NativeWindow& window, NativeOpenGLContext& context)
 	// Get the device context
 	const HDC deviceContext = GetDC(window.window);
 	if (!deviceContext)
-		throw runtime_error("Unable to get device context from window");
+		throw "Unable to get device context from window";
 
 	// Tell windows to swap buffers
 	if (!::SwapBuffers(deviceContext))
-		throw runtime_error("SwapBuffers: " + GetLastErrorAsString());
+		throw "SwapBuffers: " + GetLastErrorAsString();
 #endif
 }

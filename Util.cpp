@@ -11,6 +11,26 @@
 
 using namespace std;
 
+string currentExceptionMessage()
+{
+	const auto exceptionPtr = current_exception();
+	if (nullptr == exceptionPtr)
+		return "no exception";
+
+	try {
+		rethrow_exception(exceptionPtr);
+	} catch (const char* str) {
+		return str;
+	} catch (const string& str) {
+		return str;
+	} catch (const exception& e) {
+		return e.what();
+	} catch (...) {
+	}
+
+	return "unknown exception";
+}
+
 string ToUtf8(const wstring& utf16)
 {
 	return wstring_convert<codecvt_utf8_utf16<wchar_t>, wchar_t>().to_bytes(utf16);
@@ -153,7 +173,7 @@ string GetErrorString(const ErrorType error) noexcept try {
 #endif
 
 	return ret;
-} catch (const exception&) {
+} catch (...) {
 	// If we fail in any way generating the error string, return a generic error and move on
 	return "ERROR_FAILURE";
 }
