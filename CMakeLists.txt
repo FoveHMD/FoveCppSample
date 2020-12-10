@@ -39,6 +39,12 @@ else()
 	# Locate the client dynamic library
 	if(WIN32)
 		set(foveClient "${sdkFolder}/FoveClient.lib")
+		list(APPEND genericLinkLibraries "${sdkFolder}/FoveClient.lib")
+		list(APPEND genericDefinitions UNICODE)
+	elseif(APPLE)
+		set(foveClient "${sdkFolder}/libFoveClient.dylib")
+	else()
+		set(foveClient "${sdkFolder}/libFoveClient.so")
 	endif()
 	if(NOT EXISTS "${foveClient}")
 		message(FATAL_ERROR "Missing FOVE library at ${foveClient}")
@@ -46,13 +52,16 @@ else()
 
 	# Setup build parameters
 	list(APPEND genericIncludeDirs "${sdkFolder}")
-	list(APPEND genericDefinitions UNICODE)
 	list(APPEND genericLinkLibraries "${foveClient}")
 endif()
 
 # Determine the utility headers we have for the current platform
 if(WIN32)
 	set(nativeUtilFiles WIN32 NativeUtil.h WindowsUtil.h WindowsUtil.cpp)
+elseif(APPLE)
+	set(nativeUtilFiles NativeUtil.h)
+else()
+	set(nativeUtilFiles NativeUtil.h)
 endif()
 
 # Create DirectX11 example, and the option to enable/disable it
@@ -85,7 +94,7 @@ endif()
 
 # Create the OpenGL example, and the option to enable/disable it
 # It's disabled by default on mac since OpenGL is deprecated
-if(NOT APPLE)
+if(WIN32)
 	option(FOVE_BUILD_OPENGL_EXAMPLE "Enable building of the OpenGL Example" ON)
 else()
 	option(FOVE_BUILD_OPENGL_EXAMPLE "Enable building of the OpenGL Example" OFF)
