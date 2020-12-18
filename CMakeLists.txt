@@ -18,7 +18,7 @@ else()
 	set(FOVE_SDK_PATH "" CACHE PATH "Directory of extracted FOVE SDK")
 
 	# Find the sdk path (falling back to the built-in one if FOVE_SDK_PATH is not set)
-	set(sdkFolder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 1.0.0") # Path to builtin sdk folder
+	set(sdkFolder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 1.0.1") # Path to builtin sdk folder
 	if(NOT "${FOVE_SDK_PATH}" STREQUAL "")
 		# Custom error message that suggests using the built-in release if you are pointing to a bad folder
 		if(NOT EXISTS "${FOVE_SDK_PATH}" AND EXISTS "${sdkFolder}")
