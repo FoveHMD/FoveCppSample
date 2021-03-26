@@ -38,21 +38,27 @@ else()
 
 	# Locate the client dynamic library
 	if(WIN32)
-		set(foveClient "${sdkFolder}/FoveClient.lib")
+		# On Windows, the file we need to link (.lib) and the runtime file (.dll) are different
+		# The DLL file is copied to the same folder as the exe so Windows can find it at runtime
+		set(foveClientLinkObject "${sdkFolder}/FoveClient.lib")
+		set(foveClientObjectToCopy "${sdkFolder}/FoveClient.dll")
 		list(APPEND genericLinkLibraries "${sdkFolder}/FoveClient.lib")
 		list(APPEND genericDefinitions UNICODE)
 	elseif(APPLE)
-		set(foveClient "${sdkFolder}/libFoveClient.dylib")
+		set(foveClientLinkObject "${sdkFolder}/libFoveClient.dylib")
 	else()
-		set(foveClient "${sdkFolder}/libFoveClient.so")
+		set(foveClientLinkObject "${sdkFolder}/libFoveClient.so")
 	endif()
-	if(NOT EXISTS "${foveClient}")
-		message(FATAL_ERROR "Missing FOVE library at ${foveClient}")
+	if(NOT EXISTS "${foveClientLinkObject}")
+		message(FATAL_ERROR "Missing FOVE library at ${foveClientLinkObject}")
+	endif()
+	if(DEFINED foveClientObjectToCopy AND NOT EXISTS "${foveClientObjectToCopy}")
+		message(FATAL_ERROR "Missing FOVE library at ${foveClientObjectToCopy}")
 	endif()
 
 	# Setup build parameters
 	list(APPEND genericIncludeDirs "${sdkFolder}")
-	list(APPEND genericLinkLibraries "${foveClient}")
+	list(APPEND genericLinkLibraries "${foveClientLinkObject}")
 endif()
 
 # Determine the utility headers we have for the current platform
@@ -125,9 +131,9 @@ endif()
 
 # Add a post-build command to each target to copy the FoveClient dynamic library to the executable location
 # Otherwise the executable will not be able to find the dll, and will fail to launch
-if(FoveClient)
+if(foveClientObjectToCopy)
 	foreach(target ${allTargets})
-		add_custom_command(TARGET ${target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${FoveClient}" $<TARGET_FILE_DIR:${target}>)
+		add_custom_command(TARGET ${target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${foveClientObjectToCopy}" $<TARGET_FILE_DIR:${target}>)
 	endforeach()
 endif()
 
