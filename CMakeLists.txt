@@ -42,7 +42,6 @@ else()
 		# The DLL file is copied to the same folder as the exe so Windows can find it at runtime
 		set(foveClientLinkObject "${sdkFolder}/FoveClient.lib")
 		set(foveClientObjectToCopy "${sdkFolder}/FoveClient.dll")
-		list(APPEND genericLinkLibraries "${sdkFolder}/FoveClient.lib")
 		list(APPEND genericDefinitions UNICODE)
 	elseif(APPLE)
 		set(foveClientLinkObject "${sdkFolder}/libFoveClient.dylib")
