@@ -15,6 +15,16 @@
 // Use std namespace for convenience
 using namespace std;
 
+// The client must use the same GPU as the compositor, which will be the GPU wired to the headset.
+// In the DirectX example, we query the compositor for the right GPU, and launch our context on it explicitely.
+// However, in OpenGL, this must be done with WGL extensions like WGL_NV_gpu_affinity, and is out of the scope of this example.
+// Instead, at least for Optimus systems with both Intel and NVIDIA GPUs, the following export will cause
+// the Optimus driver to select the NVIDIA GPU by default, which will always be the correct one for FOVE.
+// See https://docs.nvidia.com/gameworks/content/technologies/desktop/optimus.htm for more info.
+#ifdef _WIN32
+extern "C" _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+#endif
+
 // Vertex format size
 constexpr int floatsPerVert = 7;
 
