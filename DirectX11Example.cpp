@@ -379,7 +379,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// such that we reduce the risk of missing a frame due to time spent during update
 		const Fove::Result<Fove::Pose> poseOrError = compositor.waitForRenderPose();
 		const Fove::Pose pose = poseOrError.isValid() ? poseOrError.getValue() : Fove::Pose();
-		if (poseOrError.isValid()) {
+		if (!poseOrError.isValid()) {
 			// If there was an error waiting, it's possible that WaitForRenderPose returned immediately
 			// Sleep a little bit to prevent us from rendering at maximum framerate and eating massive resources/battery
 			this_thread::sleep_for(10ms);
