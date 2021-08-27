@@ -289,6 +289,25 @@ struct GlResource<GlResourceType::Fbo>::GlResourceInfo {
 	static constexpr auto BindFunc = &glBindFramebuffer;
 };
 
+#ifdef _WIN32
+
+// For some reason MSVC 2017 sometimes gives "cannot deduce type for 'auto' from 'overloaded-function'"
+// when taking the address of functions declared with APIENTRY, so we have a quick adapter here
+
+inline void glGenTextures2(GLsizei n, GLuint *textures)
+{
+	glGenTextures(n, textures);
+}
+
+inline void glDeleteTextures2(GLsizei n, const GLuint *textures)
+{
+	glDeleteTextures(n, textures);
+}
+#define glGenTextures glGenTextures2
+#define glDeleteTextures glDeleteTextures2
+
+#endif
+
 template <>
 struct GlResource<GlResourceType::Texture>::GlResourceInfo {
 	static constexpr auto GenFunc = &GenAdapter<&glGenTextures>;
