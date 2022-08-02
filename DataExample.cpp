@@ -75,28 +75,15 @@ int main() try {
 		// Feel free to mess around and call other data query functions,
 		// but remember to add the capabilities as needed
 
-		// Left gaze vector
-		const auto leftGaze = headset.getGazeVector(Fove::Eye::Left);
-		cout << "Gaze vectors:   L(" << fixed << setprecision(3);
-		if (leftGaze.isValid()) {
-			cout
-			    << setw(5) << leftGaze.getValue().x << ", "
-			    << setw(5) << leftGaze.getValue().y << ", "
-			    << setw(5) << leftGaze.getValue().z;
+		// Get the gaze vector
+		const auto gazeData = headset.getCombinedGazeRay();
+		if (gazeData.isValid()) {
+			cout << "Gaze vectors:   (" << fixed << setprecision(3)
+			    << setw(5) << gazeData->direction.x << ", "
+			    << setw(5) << gazeData->direction.y << ", "
+			    << setw(5) << gazeData->direction.z << ')' << endl;
 		} else {
-			cout << "error: " << static_cast<int>(leftGaze.getError());
-		}
-
-		// Right gaze vector
-		const auto rightGaze = headset.getGazeVector(Fove::Eye::Right);
-		cout << ")   R(";
-		if (rightGaze.isValid()) {
-			cout
-			    << setw(5) << rightGaze.getValue().x << ", "
-			    << setw(5) << rightGaze.getValue().y << ", "
-			    << setw(5) << rightGaze.getValue().z << ')' << endl;
-		} else {
-			cout << "error: " << static_cast<int>(rightGaze.getError()) << ')' << endl;
+			cout << "getCombinedGazeRay returned error #" << static_cast<int>(gazeData.getError()) << endl;
 		}
 	}
 } catch (...) {
