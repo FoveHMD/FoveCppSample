@@ -344,7 +344,6 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	}
 
 	// Main loop
-	Fove::Matrix44 cameraMatrix; // Stores the camera translation used each frame
 	while (true) {
 		// Update
 		float selection = -1; // Selected model that will be computed each time in the update phase
@@ -406,11 +405,6 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation))    // Apply the HMD orientation
 			    * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
 			    * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
-
-			// Compute the camera matrix which is the opposite of the modelview
-			// This is used for selection in the update cycle
-			// We could simply invert the modelview but in this case it's easy enough to create the inverse
-			cameraMatrix = QuatToMatrix(pose.orientation) * TranslationMatrix(pose.position.x, pose.position.y, pose.position.z) * TranslationMatrix(0, playerHeight, 0);
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
