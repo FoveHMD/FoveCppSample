@@ -174,7 +174,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// The client *must* run on the same GPU as the compositor or texture submission will not work.
 	CComPtr<IDXGIAdapter> adapterOrNull;
 	{
-		const Fove::Result<Fove::AdapterId> adapterIdOrError = compositor.getAdapterId(nullptr);
+		const Fove::Result<Fove::AdapterId> adapterIdOrError = compositor.queryAdapterId(nullptr);
 		if (adapterIdOrError.isValid())
 			adapterOrNull = FindAdapter(adapterIdOrError.getValue());
 		else

@@ -62,8 +62,9 @@ int main() try {
 		// Wait for the next eye frame
 		// The current thread will sleep until a new frame comes in
 		// This allows us to capture data at the full frame rate of eye tracking and not use too much CPU
-		const auto waitResult = headset.waitAndFetchNextEyeTrackingData();
-		if (!checkError(waitResult.getError())) {
+		const auto waitResult = headset.waitForProcessedEyeFrame();
+		const auto fetchResult = headset.fetchEyeTrackingData();
+		if (!checkError(waitResult.getError()) || !checkError(fetchResult.getError())) {
 			// Sleep for a second in the event of failure
 			// If the wait function fails, it might have returned immediately, and we may eat up 100% of a CPU core if we don't sleep manually
 			this_thread::sleep_for(chrono::seconds { 1 }); // Can use 1s in C++14 and later
