@@ -597,8 +597,8 @@ FOVE_STRUCT(Versions)
 FOVE_STRUCT(LicenseInfo)
 {
 	FOVE_STRUCT_ARRAY(unsigned char, 16, uuid, {});      //!< 128-bit UUID of this license, in binary form
-	int FOVE_STRUCT_VAL(exprationYear, 0);            //!< Expiration, year (eg. 2028), 0 if there is no expiration
-	int FOVE_STRUCT_VAL(exprationMonth, 0);           //!< Expiration month (1 - 12), 0 if there is no expiration
+	int FOVE_STRUCT_VAL(expirationYear, 0);            //!< Expiration, year (eg. 2028), 0 if there is no expiration
+	int FOVE_STRUCT_VAL(expirationMonth, 0);           //!< Expiration month (1 - 12), 0 if there is no expiration
 	int FOVE_STRUCT_VAL(expirationDay, 0);            //!< Expiration day (1 - 31), 0 if there is no expiration
 	FOVE_STRUCT_ARRAY(char, 128, licenseType, {});       //!< Null-termianted type of license, such as "Professional"
 	FOVE_STRUCT_ARRAY(char, 256, licensee, {});          //!< Null-terminated name of the person or organization that this license is for, truncated as needed
