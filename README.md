@@ -1,12 +1,12 @@
 # FOVE C++ Examples
 
-This repository contains C++ programs that demonstrate how to use the FOVE SDK.
+This repository contains C++14 (or newer) programs that demonstrate how to use the FOVE SDK. They can also serve as base code upon which to build your own eye-tracking VR app with FOVE.
 
-The Data Example is a platform-independant example that shows how to:
-- Properly connect to the service
-- Read out data and check for error
+The **Data Example** is a platform-independent example that shows how to:
+- Connect to the FOVE Service
+- Read out data from the headset, and check for error
 
-The DirectX11 Example is Windows-specific and demonstrates the following:
+The **DirectX11 Example** is Windows-specific and demonstrates the following:
 - DirectX setup
 - Orientation tracking
 - Position tracking
@@ -15,7 +15,9 @@ The DirectX11 Example is Windows-specific and demonstrates the following:
 - Eye tracking (objects are highlighted when gazed upon)
 - Displaying the rendered scene in a window in addition to the HMD
 
-The OpenGL example is similar to the DirectX11 example, except it uses OpenGL for rendering Previous versions used the WGL_NV_DX_interop2 extension to render to a DirectX11 surface (needed for submission to the FOVE compositor), but this is now internally handled by the FOVE API.
+The **OpenGL example** is similar to the DirectX11 example, except it uses OpenGL for rendering Previous versions used the WGL_NV_DX_interop2 extension to render to a DirectX11 surface (needed for submission to the FOVE compositor), but this is now internally handled by the FOVE API.
+
+> All of these examples are meant to be as short and simple as possible to be understandable. They do not always show the best approach. For example, in the graphical examples we render to the HMD and the PC monitor in the same thread .This is not recommended in production since they will likely have different frame rates.
 
 ## How to build
 
@@ -26,20 +28,25 @@ You can use a standard CMake build process:
 2. Use CMake command line or gui to generate project files
 3. Build and run
 
-
-
-Visual Studio:
-1. Ensure CMake (https://cmake.org/) and Visual Studio 2015 or later are installed.
+For example, if you want to use Visual Studio;
+1. Ensure CMake and Visual Studio 2015 or later are installed.
 2. Run CMake to generate a 64-bit Visual Studio project (build folder can go anywhere).
 3. Open the generated Visual Studio project, and build and run from there.
 
+If you want to compile directly without CMake, you can just pass the needed cpp files and search paths and libraries. The data example is the simplest:
 
+```bash
+bash$ c++ DataExample.cpp Util.cpp -I "FOVE SDK"* -L "FOVE SDK"* -lFoveClient -o DataExample
+bash$ LD_LIBRARY_PATH=$(cd "FOVE SDK"* && pwd) ./DataExample
+```
 
-Qt Creator + MSVC tool chain:
-1. Ensure that you have at least CMake 3.7, Qt Creator 3.8, and the MSVC tool chain (2015 or later) installed.
-2. Setup a cmake kit in the Qt Creator options, and ensure that it points to the right cmake/compiler/debugger/generator (use the same generators as suggested above).
-3. Open the CMakeList.txt file with Qt Creator, ensure that you've selected the kit you made, and build and run from there.
+```cmd
+x64 Native Tools Command Prompt for VS> CL.exe /EHsc /I"FOVE SDK X.X.X" DataExample.cpp Util.cpp "FOVE SDK X.X.X/FoveClient.lib"
+x64 Native Tools Command Prompt for VS> DataExample.exe
+```
 
-If you run into any difficulties, hit us up on the forums. http://forum.getfove.com/
+## Contact
 
-If you have improvements you would like to submit to the sample project, send us a pull request.
+You can get in touch with us from [our website](https://fove-inc.com/contact/).
+
+If you have fixes or improvements you would like to submit, don't hesitate to send us a pull request on GitHub.
