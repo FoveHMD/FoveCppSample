@@ -44,7 +44,7 @@ void GlCheckError(const char* function)
 	}
 
 	if (!errorStr.empty())
-		throw "error in "s + function + ": " + errorStr;
+		throw "Error in "s + function + ": " + errorStr;
 }
 
 const char* GlFuncToString(const void* const func)

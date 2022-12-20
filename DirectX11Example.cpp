@@ -123,7 +123,7 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11D
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT; //D3D11_BIND_RENDER_TARGET/ D3D11_BIND_SHADER_RESOURCE?
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT; // D3D11_BIND_RENDER_TARGET/ D3D11_BIND_SHADER_RESOURCE?
 	swapChainDesc.BufferCount = 1;
 
 	// Create IDXGISwapChain1 with factory

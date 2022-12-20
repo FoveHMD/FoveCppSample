@@ -32,27 +32,27 @@ constexpr int floatsPerVert = 7;
 constexpr float playerHeight = 1.6f;
 
 // Main vertex shader source
-const char* const vertSrc = "#version 140\n"                                                 // Declare GLSL version
-                            "uniform mat4 mvp;\n"                                            // Modelview matrix (updated per-frame)
-                            "uniform float selection;\n"                                     // Currently selected object
-                            "in vec4 pos;\n"                                                 // Position of the vertex (from the model), 4th element is the object
-                            "in vec3 color;\n"                                               // Color of the vertex (from the model)
-                            "out vec3 fragColor;\n"                                          // The output color we will pass to the shader
-                            "void main(void)\n"                                              // Entry point of the shader
-                            "{\n"                                                            //
-                            "	gl_Position = mvp * vec4(pos.xyz, 1.0);\n"                   // Transform the position by the modelview matrix
-                            "	float selection = max(0.0, 0.5 - abs(selection - pos.w));\n" // Compute whether this is part of a selected object
-                            "	fragColor = color + vec3(selection);\n"                      // Color is simply passed through to frag shader
-                            "}";
+const char* const demoSceneVertSrc = "#version 140\n"                                                // Declare GLSL version
+                                     "uniform mat4 mvp;\n"                                           // Modelview matrix (updated per-frame)
+                                     "uniform float selection;\n"                                    // Currently selected object
+                                     "in vec4 pos;\n"                                                // Position of the vertex (from the model), 4th element is the object
+                                     "in vec3 color;\n"                                              // Color of the vertex (from the model)
+                                     "out vec3 fragColor;\n"                                         // The output color we will pass to the shader
+                                     "void main(void)\n"                                             // Entry point of the shader
+                                     "{\n"                                                           //
+                                     "	gl_Position = mvp * vec4(pos.xyz, 1.0);\n"                   // Transform the position by the modelview matrix
+                                     "	float selection = max(0.0, 0.5 - abs(selection - pos.w));\n" // Compute whether this is part of a selected object
+                                     "	fragColor = color + vec3(selection);\n"                      // Color is simply passed through to frag shader
+                                     "}";
 
 // Main fragment shader source
-const char* const fragSrc = "#version 140\n"                          // Declare GLSL version
-                            "in vec3 fragColor;\n"                    // The incoming color from the vertex shader
-                            "out vec4 finalColor;\n"                  // The output color
-                            "void main(void)\n"                       // Entry point of the shader
-                            "{\n"                                     //
-                            "	finalColor = vec4(fragColor, 1.0);\n" // Pass the color straight through
-                            "}";
+const char* const demoSceneFragSrc = "#version 140\n"                         // Declare GLSL version
+                                     "in vec3 fragColor;\n"                   // The incoming color from the vertex shader
+                                     "out vec4 finalColor;\n"                 // The output color
+                                     "void main(void)\n"                      // Entry point of the shader
+                                     "{\n"                                    //
+                                     "	finalColor = vec4(fragColor, 1.0);\n" // Pass the color straight through
+                                     "}";
 
 // Texture copy vertex shader source
 const char* const texCopyVertSrc = "#version 140\n"                           // Declare GLSL version
@@ -215,7 +215,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	RenderSurface renderSurface = GenerateRenderSurface(renderSurfaceSize);
 
 	// Create the shaders
-	const GlResource<GlResourceType::Program> mainShader = CreateShaderProgram(vertSrc, fragSrc);
+	const GlResource<GlResourceType::Program> mainShader = CreateShaderProgram(demoSceneVertSrc, demoSceneFragSrc);
 	const GlResource<GlResourceType::Program> texCopyShader = CreateShaderProgram(texCopyVertSrc, texCopyFragSrc);
 
 	// Helper function for getting uniform/attrib locations
@@ -261,9 +261,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		GlCall(glEnableVertexAttribArray, colorLoc);
 
 		// Bind the vertex array
-		constexpr size_t stride = sizeof(float) * floatsPerVert;
-		GlCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, (GLsizei)stride, (void*)0);
-		GlCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, GLsizei(sizeof(float) * floatsPerVert), (void*)(sizeof(float) * 4));
+		constexpr GLsizei stride = static_cast<GLsizei>(sizeof(float) * floatsPerVert);
+		GlCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, stride, (void*)0);
+		GlCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 4));
 
 		return vao;
 	}();

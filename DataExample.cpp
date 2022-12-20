@@ -80,9 +80,9 @@ int main() try {
 		const auto gazeData = headset.getCombinedGazeRay();
 		if (gazeData.isValid()) {
 			cout << "Gaze vectors:   (" << fixed << setprecision(3)
-			    << setw(5) << gazeData->direction.x << ", "
-			    << setw(5) << gazeData->direction.y << ", "
-			    << setw(5) << gazeData->direction.z << ')' << endl;
+			     << setw(5) << gazeData->direction.x << ", "
+			     << setw(5) << gazeData->direction.y << ", "
+			     << setw(5) << gazeData->direction.z << ')' << endl;
 		} else {
 			cout << "getCombinedGazeRay returned error #" << static_cast<int>(gazeData.getError()) << endl;
 		}

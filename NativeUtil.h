@@ -30,4 +30,7 @@ void ShowErrorBox(const std::string& msg);
 // Include the platform-specific version of this header based on the current platform
 #ifdef _WIN32
 #include "WindowsUtil.h"
+#elif defined(__APPLE__)
+#else
+#include "LinuxUtil.h"
 #endif

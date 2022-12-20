@@ -1,10 +1,14 @@
 # CMake project for FOVE C++ Examples
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.14)
 project(FoveCppExamples)
 
-# Enable C++14
-# FOVE SDK supports C++11 and later, we use C++14 for some code readability improvements
-set(CMAKE_CXX_STANDARD 14)
+# Enable C++17
+# FOVE SDK supports C++11 and later, we use C++17 for some code readability improvements
+set(CMAKE_CXX_STANDARD 17)
+
+if (NOT WIN32)
+	find_package(Threads REQUIRED)
+endif()
 
 # Find the Fove SDK
 if("${CppExampleBuildInTree}")
@@ -66,7 +70,7 @@ if(WIN32)
 elseif(APPLE)
 	set(nativeUtilFiles NativeUtil.h)
 else()
-	set(nativeUtilFiles NativeUtil.h)
+	set(nativeUtilFiles NativeUtil.h LinuxUtil.h LinuxUtil.cpp)
 endif()
 
 # Create DirectX11 example, and the option to enable/disable it
@@ -95,6 +99,64 @@ if(FOVE_BUILD_DIRECTX11_EXAMPLE)
 
 	# Add the DirectX11 example to our list of targets which is used below
 	list(APPEND allTargets FoveDirectX11Example)
+endif()
+
+# Create the Vulkan example, and the option to enable/disable it
+# This is currently only supported on Linux
+if(WIN32 OR APPLE)
+	option(FOVE_BUILD_VULKAN_EXAMPLE "Enable building of the Vulkan Example" OFF)
+else()
+	option(FOVE_BUILD_VULKAN_EXAMPLE "Enable building of the Vulkan Example" ON)
+endif()
+if(FOVE_BUILD_VULKAN_EXAMPLE)
+	# Find the Vulkan libraries installed on the system
+	find_package(Vulkan REQUIRED)
+	if (NOT TARGET Vulkan::Vulkan)
+		message(FATAL_ERROR "FOVE_BUILD_VULKAN_EXAMPLE is on but Vulkan library not found")
+	endif()
+
+	# Find the X11 libraries installed on the system
+	find_package(X11 REQUIRED)
+	if (NOT TARGET X11::X11)
+		message(FATAL_ERROR "FOVE_BUILD_VULKAN_EXAMPLE is on but X11 libraries could not be find")
+	endif()
+
+	add_executable(FoveSpv2Txt "${CMAKE_CURRENT_LIST_DIR}/spv2txt.cpp")
+	set(VULKAN_SHADER_IN_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders")
+	set(VULKAN_SHADER_OUT_DIR "${PROJECT_BINARY_DIR}/shaders")
+	set(VULKAN_SHADERS "DemoScene" "TextureCopy")
+	foreach(shader ${VULKAN_SHADERS})
+		set(VULKAN_FRAG_SPV "${VULKAN_SHADER_IN_DIR}/${shader}.frag.spv")
+		set(VULKAN_VERT_SPV "${VULKAN_SHADER_IN_DIR}/${shader}.vert.spv")
+		set(VULKAN_FRAG_OUT "${VULKAN_SHADER_OUT_DIR}/${shader}.frag.spv")
+		set(VULKAN_VERT_OUT "${VULKAN_SHADER_OUT_DIR}/${shader}.vert.spv")
+		add_custom_command(
+			OUTPUT "${VULKAN_FRAG_OUT}.h" "${VULKAN_FRAG_OUT}.c" "${VULKAN_VERT_OUT}.h" "${VULKAN_VERT_OUT}.c"
+			COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_SHADER_OUT_DIR}"
+			COMMAND FoveSpv2Txt "${VULKAN_FRAG_SPV}" "${VULKAN_FRAG_OUT}.h" "${VULKAN_FRAG_OUT}.c" vlk_shader${shader}Frag
+			COMMAND FoveSpv2Txt "${VULKAN_VERT_SPV}" "${VULKAN_VERT_OUT}.h" "${VULKAN_VERT_OUT}.c" vlk_shader${shader}Vert
+			DEPENDS "${VULKAN_FRAG_SPV}" "${VULKAN_VERT_SPV}" FoveSpv2Txt)
+		list(APPEND VULKAN_SPIRV_BINARY_FILES "${VULKAN_FRAG_SPV}" "${VULKAN_VERT_SPV}")
+		list(APPEND VULKAN_SPIRV_TEXT_FILES "${VULKAN_FRAG_OUT}.h" "${VULKAN_FRAG_OUT}.c" "${VULKAN_VERT_OUT}.h" "${VULKAN_VERT_OUT}.c")
+	endforeach(shader)
+	add_custom_target(FoveVulkanShaders
+		DEPENDS ${VULKAN_SPIRV_BINARY_FILES} ${VULKAN_SPIRV_TEXT_FILES}
+	)
+
+	# Declare the Vulkan example target
+	add_executable(FoveVulkanExample  ${nativeUtilFiles} VulkanExample.cpp Util.h Util.cpp Model.h ${VULKAN_SPIRV_TEXT_FILES})
+	add_dependencies(FoveVulkanExample FoveVulkanShaders)
+	target_include_directories(FoveVulkanExample PRIVATE ${genericIncludeDirs} "${VULKAN_SHADER_OUT_DIR}")
+	target_compile_definitions(FoveVulkanExample PRIVATE ${genericDefinitions})
+	target_link_libraries(FoveVulkanExample
+		${genericLinkLibraries}
+		$<$<PLATFORM_ID:Linux>:Threads::Threads>
+		Vulkan::Vulkan
+		X11::X11
+	)
+
+	# Add the Vulkan example to our list of targets which is used below
+	list(APPEND allTargets FoveVulkanExample)
 endif()
 
 # Create the OpenGL example, and the option to enable/disable it

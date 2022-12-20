@@ -1,6 +1,6 @@
 # FOVE C++ Examples
 
-This repository contains C++14 (or newer) programs that demonstrate how to use the FOVE SDK. They can also serve as base code upon which to build your own eye-tracking VR app with FOVE.
+This repository contains C++17 (or newer) programs that demonstrate how to use the FOVE SDK. They can also serve as base code upon which to build your own eye-tracking VR app with FOVE.
 
 The **Data Example** is a platform-independent example that shows how to:
 - Connect to the FOVE Service
@@ -15,9 +15,11 @@ The **DirectX11 Example** is Windows-specific and demonstrates the following:
 - Eye tracking (objects are highlighted when gazed upon)
 - Displaying the rendered scene in a window in addition to the HMD
 
-The **OpenGL example** is similar to the DirectX11 example, except it uses OpenGL for rendering Previous versions used the WGL_NV_DX_interop2 extension to render to a DirectX11 surface (needed for submission to the FOVE compositor), but this is now internally handled by the FOVE API.
+The **OpenGL Example** is similar to the DirectX11 Example, except it uses OpenGL for rendering. It is Windows only for now. Previous versions used the WGL_NV_DX_interop2 extension to render to a DirectX11 surface (needed for submission to the FOVE compositor), but this is now internally handled by the FOVE API.
 
-> All of these examples are meant to be as short and simple as possible to be understandable. They do not always show the best approach. For example, in the graphical examples we render to the HMD and the PC monitor in the same thread .This is not recommended in production since they will likely have different frame rates.
+The **Vulkan Example** is also similar to the DirectX11 Example, but Linux-only and using Vulkan. To keep things simple, the compiled shaders are in included (alongside the source) in the repo so compiling shaders is not needed. OpenGL and DirectX11 by contrast include a means to compile shaders at runtime, so only the Vulkan Example has this.
+
+> Note: All of these examples are meant to be as short and simple as possible to be understandable. They do not always show the best approach. For example, in the graphical examples we render to the HMD and the PC monitor in the same thread .This is not recommended in production since they will likely have different frame rates.
 
 ## How to build
 
