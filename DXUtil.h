@@ -11,20 +11,21 @@ std::string HResultToString(HRESULT result) noexcept;
 template <typename Type>
 struct InputArrayBinding;
 template <typename Type>
-InputArrayBinding<Type> BindInputArray(const Type object) { return InputArrayBinding<Type> { object }; }
+InputArrayBinding<Type> BindInputArray(const Type object) { return InputArrayBinding<Type>{object}; }
 template <typename Type>
 InputArrayBinding<Type*> BindInputArray(const CComPtr<Type>& object) { return BindInputArray<Type*>(object); }
 
 // Implementation BindInputArray
 template <typename Type>
-struct InputArrayBinding {
+struct InputArrayBinding
+{
 	InputArrayBinding(const Type o)
-	    : obj(o)
+		: obj(o)
 	{
 	}
 	InputArrayBinding(const InputArrayBinding&) = delete;
 	InputArrayBinding(InputArrayBinding&& o)
-	    : obj(o.obj)
+		: obj(o.obj)
 	{
 	}
 	operator const Type*() && { return ptr; } // && forces this to only be used with rvalues/temporaries

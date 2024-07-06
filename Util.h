@@ -1,6 +1,5 @@
 #pragma once
 #include "FoveAPI.h"
-#include <chrono>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -49,10 +48,10 @@ Fove::Matrix44 Transpose(const Fove::Matrix44& m);
 Fove::Matrix44 TranslationMatrix(float x, float y, float z);
 Fove::Vec3 TransformPoint(const Fove::Matrix44& transform, Fove::Vec3 point, float w);
 Fove::Matrix44 operator*(const Fove::Matrix44& m1, const Fove::Matrix44& m2);
-inline Fove::Vec3 operator*(Fove::Vec3 v, float scalar) { return { v.x * scalar, v.y * scalar, v.z * scalar }; }
-inline Fove::Vec3 operator/(Fove::Vec3 v, float scalar) { return { v.x / scalar, v.y / scalar, v.z / scalar }; }
-inline Fove::Vec3 operator+(Fove::Vec3 v1, Fove::Vec3 v2) { return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z }; }
-inline Fove::Vec3 operator-(Fove::Vec3 v1, Fove::Vec3 v2) { return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z }; }
+inline Fove::Vec3 operator*(Fove::Vec3 v, float scalar) { return {v.x * scalar, v.y * scalar, v.z * scalar}; }
+inline Fove::Vec3 operator/(Fove::Vec3 v, float scalar) { return {v.x / scalar, v.y / scalar, v.z / scalar}; }
+inline Fove::Vec3 operator+(Fove::Vec3 v1, Fove::Vec3 v2) { return {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z}; }
+inline Fove::Vec3 operator-(Fove::Vec3 v1, Fove::Vec3 v2) { return {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z}; }
 inline float Dot(Fove::Vec3 v1, Fove::Vec3 v2) { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
 inline float MagnitudeSquared(Fove::Vec3 v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
 inline float Magnitude(Fove::Vec3 v) { return std::sqrt(MagnitudeSquared(v)); }

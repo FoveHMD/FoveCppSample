@@ -6,7 +6,8 @@ using namespace std;
 // Handles window messages
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	if (message == WM_DESTROY) {
+	if (message == WM_DESTROY)
+	{
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -34,11 +35,11 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 		throw "Unable to register window class: " + GetLastErrorAsString();
 
 	// Create window
-	RECT r = { 0, 0, windowSizeX, windowSizeY };
+	RECT r = {0, 0, windowSizeX, windowSizeY};
 	AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
 	HWND window = CreateWindow(L"FoveWindowClass", ToUtf16(windowTitle).c_str(),
-	    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
-	    CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, nativeLaunchInfo.instance, nullptr);
+							   WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
+							   CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, nativeLaunchInfo.instance, nullptr);
 	if (!window)
 		throw "Unable to create window: " + GetLastErrorAsString();
 
@@ -52,15 +53,19 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 
 bool FlushWindowEvents(NativeWindow& window)
 {
-	while (true) {
-		MSG msg = { 0 };
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+	while (true)
+	{
+		MSG msg = {0};
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-			if (msg.message == WM_QUIT) {
+			if (msg.message == WM_QUIT)
+			{
 				return false;
 			}
-		} else
+		}
+		else
 			return true;
 	}
 }

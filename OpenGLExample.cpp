@@ -33,46 +33,46 @@ constexpr float playerHeight = 1.6f;
 
 // Main vertex shader source
 const char* const demoSceneVertSrc = "#version 140\n"                                                // Declare GLSL version
-                                     "uniform mat4 mvp;\n"                                           // Modelview matrix (updated per-frame)
-                                     "uniform float selection;\n"                                    // Currently selected object
-                                     "in vec4 pos;\n"                                                // Position of the vertex (from the model), 4th element is the object
-                                     "in vec3 color;\n"                                              // Color of the vertex (from the model)
-                                     "out vec3 fragColor;\n"                                         // The output color we will pass to the shader
-                                     "void main(void)\n"                                             // Entry point of the shader
-                                     "{\n"                                                           //
-                                     "	gl_Position = mvp * vec4(pos.xyz, 1.0);\n"                   // Transform the position by the modelview matrix
-                                     "	float selection = max(0.0, 0.5 - abs(selection - pos.w));\n" // Compute whether this is part of a selected object
-                                     "	fragColor = color + vec3(selection);\n"                      // Color is simply passed through to frag shader
-                                     "}";
+									 "uniform mat4 mvp;\n"                                           // Modelview matrix (updated per-frame)
+									 "uniform float selection;\n"                                    // Currently selected object
+									 "in vec4 pos;\n"                                                // Position of the vertex (from the model), 4th element is the object
+									 "in vec3 color;\n"                                              // Color of the vertex (from the model)
+									 "out vec3 fragColor;\n"                                         // The output color we will pass to the shader
+									 "void main(void)\n"                                             // Entry point of the shader
+									 "{\n"                                                           //
+									 "	gl_Position = mvp * vec4(pos.xyz, 1.0);\n"                   // Transform the position by the modelview matrix
+									 "	float selection = max(0.0, 0.5 - abs(selection - pos.w));\n" // Compute whether this is part of a selected object
+									 "	fragColor = color + vec3(selection);\n"                      // Color is simply passed through to frag shader
+									 "}";
 
 // Main fragment shader source
 const char* const demoSceneFragSrc = "#version 140\n"                         // Declare GLSL version
-                                     "in vec3 fragColor;\n"                   // The incoming color from the vertex shader
-                                     "out vec4 finalColor;\n"                 // The output color
-                                     "void main(void)\n"                      // Entry point of the shader
-                                     "{\n"                                    //
-                                     "	finalColor = vec4(fragColor, 1.0);\n" // Pass the color straight through
-                                     "}";
+									 "in vec3 fragColor;\n"                   // The incoming color from the vertex shader
+									 "out vec4 finalColor;\n"                 // The output color
+									 "void main(void)\n"                      // Entry point of the shader
+									 "{\n"                                    //
+									 "	finalColor = vec4(fragColor, 1.0);\n" // Pass the color straight through
+									 "}";
 
 // Texture copy vertex shader source
 const char* const texCopyVertSrc = "#version 140\n"                           // Declare GLSL version
-                                   "in vec2 pos;\n"                           // Position of the vertex
-                                   "out vec2 uv;\n"                           // Output texture coordinate of this vertex
-                                   "void main(void)\n"                        // Entry point of the shader
-                                   "{\n"                                      //
-                                   "	gl_Position = vec4(pos, 0.0, 1.0);\n" // Transform the position
-                                   "	uv = pos * 0.5 + 0.5;\n"              // Position goes from -1 to 1, but uvs go from 0 to 1
-                                   "}";
+								   "in vec2 pos;\n"                           // Position of the vertex
+								   "out vec2 uv;\n"                           // Output texture coordinate of this vertex
+								   "void main(void)\n"                        // Entry point of the shader
+								   "{\n"                                      //
+								   "	gl_Position = vec4(pos, 0.0, 1.0);\n" // Transform the position
+								   "	uv = pos * 0.5 + 0.5;\n"              // Position goes from -1 to 1, but uvs go from 0 to 1
+								   "}";
 
 // Texture copy fragment shader source
 const char* const texCopyFragSrc = "#version 140\n"                       // Declare GLSL version
-                                   "uniform sampler2D tex;\n"             // The texture we will read
-                                   "in vec2 uv;\n"                        // Texture coordinate from the vertex shader
-                                   "out vec4 finalColor;\n"               // The output color
-                                   "void main(void)\n"                    // Entry point of the shader
-                                   "{\n"                                  //
-                                   "	finalColor = texture(tex, uv);\n" // Texture sample is the final color, no transformations
-                                   "}";
+								   "uniform sampler2D tex;\n"             // The texture we will read
+								   "in vec2 uv;\n"                        // Texture coordinate from the vertex shader
+								   "out vec4 finalColor;\n"               // The output color
+								   "void main(void)\n"                    // Entry point of the shader
+								   "{\n"                                  //
+								   "	finalColor = texture(tex, uv);\n" // Texture sample is the final color, no transformations
+								   "}";
 
 GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, const char* const fragSrc)
 {
@@ -91,14 +91,16 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 		// Check compilation status
 		GLint isCompiled = GL_FALSE;
 		GlCall(glGetShaderiv, shader, GL_COMPILE_STATUS, &isCompiled);
-		if (isCompiled == GL_FALSE) {
+		if (isCompiled == GL_FALSE)
+		{
 			// Get the length of the error log
 			GLint length = 0;
 			GlCall(glGetShaderiv, shader, GL_INFO_LOG_LENGTH, &length);
 
 			// Read the error log
 			string log;
-			if (length > 0) {
+			if (length > 0)
+			{
 				log.resize(length);
 				GlCall(glGetShaderInfoLog, shader, length, &length, &log[0]);
 
@@ -126,14 +128,16 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 	// Check if the program linked correctly
 	GLint isLinked = GL_FALSE;
 	GlCall(glGetProgramiv, program, GL_LINK_STATUS, &isLinked);
-	if (isLinked == GL_FALSE) {
+	if (isLinked == GL_FALSE)
+	{
 		// Get the length of the error log
 		GLint length = 0;
 		GlCall(glGetProgramiv, program, GL_INFO_LOG_LENGTH, &length);
 
 		// Read the error log
 		string log;
-		if (length > 0) {
+		if (length > 0)
+		{
 			log.resize(length);
 			GlCall(glGetProgramInfoLog, program, length, &length, &log[0]);
 
@@ -154,7 +158,8 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 	return program;
 }
 
-struct RenderSurface {
+struct RenderSurface
+{
 	GlResource<GlResourceType::RenderBuffer> depthBuffer; // Z-buffer
 	GlResource<GlResourceType::Texture> fboTexture;       // Color buffer that can be used as a texture
 	GlResource<GlResourceType::Fbo> fbo;                  // Framebuffer associated with the above two textures
@@ -168,7 +173,8 @@ RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
 	// The left side of this texture will be for the left eye, the right side for the right eye
 	// We use a nearest filter since when we submit this texture to the compositor, it will be copied to a texture of equivalent size
 	// If you were to draw to a smaller buffer (for performance reasons), linear would be a better choice
-	if (!ret.fboTexture) {
+	if (!ret.fboTexture)
+	{
 		ret.fboTexture.CreateAndBind(GL_TEXTURE_2D);
 		GlCall(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, singleEyeResolution.x * 2, singleEyeResolution.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	}
@@ -194,7 +200,9 @@ RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
 
 // Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
-void Main(NativeLaunchInfo nativeLaunchInfo) try {
+void Main(NativeLaunchInfo nativeLaunchInfo)
+try
+{
 	// Connect to headset, specifying the capabilities we will use
 	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::OrientationTracking | Fove::ClientCapabilities::PositionTracking | Fove::ClientCapabilities::EyeTracking | Fove::ClientCapabilities::GazedObjectDetection).getValue();
 
@@ -204,7 +212,7 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Create a compositor layer, which we will use for submission
 	const Fove::CompositorLayerCreateInfo layerCreateInfo; // Using all default values
 	Fove::Result<Fove::CompositorLayer> layerOrError = compositor.createLayer(layerCreateInfo);
-	Fove::Vec2i renderSurfaceSize = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i { 1024, 1024 };
+	Fove::Vec2i renderSurfaceSize = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i{1024, 1024};
 
 	// Create a window and setup an OpenGL associated with it
 	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE OpenGL Example");
@@ -326,11 +334,12 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		constexpr size_t numSphereFloats = sizeof(collisionSpheres) / sizeof(float);
 		static_assert(numSphereFloats % 5 == 0, "Invalid collision sphere format");
 		constexpr size_t numSpheres = numSphereFloats / 5;
-		for (size_t i = 0; i < numSpheres; ++i) {
+		for (size_t i = 0; i < numSpheres; ++i)
+		{
 			const float selectionid = collisionSpheres[i * 5 + 0];
 
 			Fove::ObjectCollider collider;
-			collider.center = Fove::Vec3 { collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4] };
+			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
 			collider.shapeType = Fove::ColliderType::Sphere;
 			collider.shapeDefinition.sphere.radius = collisionSpheres[i * 5 + 1];
 
@@ -344,7 +353,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	}
 
 	// Main loop
-	while (true) {
+	while (true)
+	{
 		// Update
 		float selection = -1; // Selected model that will be computed each time in the update phase
 		{
@@ -353,11 +363,14 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Create layer if we have none
 			// This allows us to connect to the compositor once it launches
-			if (!layerOrError) {
+			if (!layerOrError)
+			{
 				// Check if the compositor is ready first. Otherwise we will hang for a while when trying to create a layer
 				Fove::Result<bool> isReadyOrError = compositor.isReady();
-				if (isReadyOrError.isValid() && isReadyOrError.getValue()) {
-					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid()) {
+				if (isReadyOrError.isValid() && isReadyOrError.getValue())
+				{
+					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid())
+					{
 						// Todo: resize rendering surface
 					}
 				}
@@ -377,7 +390,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// such that we reduce the risk of missing a frame due to time spent during update
 		const Fove::Result<Fove::Pose> poseOrError = compositor.waitForRenderPose();
 		const Fove::Pose pose = poseOrError.isValid() ? poseOrError.getValue() : Fove::Pose();
-		if (!poseOrError.isValid()) {
+		if (!poseOrError.isValid())
+		{
 			// If there was an error waiting, it's possible that WaitForRenderPose returned immediately
 			// Sleep a little bit to prevent us from rendering at maximum framerate and eating massive resources/battery
 			this_thread::sleep_for(10ms);
@@ -402,9 +416,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation))    // Apply the HMD orientation
-			    * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
-			    * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation))                                 // Apply the HMD orientation
+											 * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
+											 * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
@@ -412,7 +426,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Fetch the projection matrices
 			Fove::Result<Fove::Stereo<Fove::Matrix44>> projectionsOrError = headset.getProjectionMatricesLH(0.01f, 1000.0f);
-			if (projectionsOrError.isValid()) {
+			if (projectionsOrError.isValid())
+			{
 				// Helper function to render the scene
 				const auto RenderScene = [&](bool isLeft) {
 					// Setup the viewport such that we only render to the right/left half of the texture
@@ -434,8 +449,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		}
 
 		// Present rendered results to compositor
-		if (layerOrError && renderSurface.fboTexture) {
-			const Fove::GLTexture tex { (GLuint)renderSurface.fboTexture };
+		if (layerOrError && renderSurface.fboTexture)
+		{
+			const Fove::GLTexture tex{(GLuint)renderSurface.fboTexture};
 
 			Fove::CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layerOrError->layerId;
@@ -484,7 +500,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		camPose.rotation = pose.orientation;
 		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
-} catch (...) {
+}
+catch (...)
+{
 	// Display any error as a popup box then exit the program
 	ShowErrorBox("Error: " + currentExceptionMessage());
 }

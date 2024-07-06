@@ -15,6 +15,7 @@ if("${CppExampleBuildInTree}")
 
 	# This allows building within the the FOVE SDK source checkout (for FOVE developers)
 	message(STATUS "Building FOVE CPP Examples in tree")
+	add_definitions(-DFOVE_CPP_SAMPLE_BUILD_IN_TREE)
 
 else()
 
@@ -22,7 +23,7 @@ else()
 	set(FOVE_SDK_PATH "" CACHE PATH "Directory of extracted FOVE SDK")
 
 	# Find the sdk path (falling back to the built-in one if FOVE_SDK_PATH is not set)
-	set(sdkFolder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 1.2.0") # Path to builtin sdk folder
+	set(sdkFolder "${CMAKE_CURRENT_LIST_DIR}/FOVE SDK 1.3.1") # Path to builtin sdk folder
 	if(NOT "${FOVE_SDK_PATH}" STREQUAL "")
 		# Custom error message that suggests using the built-in release if you are pointing to a bad folder
 		if(NOT EXISTS "${FOVE_SDK_PATH}" AND EXISTS "${sdkFolder}")
@@ -80,22 +81,24 @@ else()
 	option(FOVE_BUILD_DIRECTX11_EXAMPLE "Enable building of the DirectX11 Example" OFF)
 endif()
 if(FOVE_BUILD_DIRECTX11_EXAMPLE)
+	# Precompile shaders
+	file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Shader.frag_compiled.h
+		COMMAND fxc.exe /nologo /E frag /T ps_4_0 /Fh ${CMAKE_CURRENT_BINARY_DIR}/Shader.frag_compiled.h Shader.frag.hlsl
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        VERBATIM)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Shader.vert_compiled.h
+		COMMAND fxc.exe /nologo /E vert /T vs_4_0 /Fh ${CMAKE_CURRENT_BINARY_DIR}/Shader.vert_compiled.h Shader.vert.hlsl
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        VERBATIM)
+	add_custom_target(FoveDirectX11ExampleShaders DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/Shader.frag_compiled.h ${CMAKE_CURRENT_BINARY_DIR}/Shader.vert_compiled.h)
+
 	# Declare the DirectX11 example target
-	add_executable(FoveDirectX11Example ${nativeUtilFiles} Shader.vert.hlsl Shader.frag.hlsl DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
-	target_include_directories(FoveDirectX11Example PRIVATE ${genericIncludeDirs})
+	add_executable(FoveDirectX11Example ${nativeUtilFiles} DirectX11Example.cpp Util.h Util.cpp DXUtil.h DXUtil.cpp)
+	add_dependencies(FoveDirectX11Example FoveDirectX11ExampleShaders)
+	target_include_directories(FoveDirectX11Example PRIVATE ${genericIncludeDirs} ${CMAKE_CURRENT_BINARY_DIR})
 	target_compile_definitions(FoveDirectX11Example PRIVATE ${genericDefinitions})
 	target_link_libraries(FoveDirectX11Example ${genericLinkLibraries})
-
-	# Tell the build system to compile the shaders to a header file, and give the shader compiler build info like the entry point
-	# This is MSBuild specific, for other build systems we should make a custom step to compile these
-	set_source_files_properties(Shader.vert.hlsl PROPERTIES VS_SHADER_FLAGS "/Fh \"$(OutDir)%(Filename)_compiled.h\"" VS_SHADER_TYPE Vertex VS_SHADER_MODEL 4.0 VS_SHADER_ENTRYPOINT vert)
-	set_source_files_properties(Shader.frag.hlsl PROPERTIES VS_SHADER_FLAGS "/Fh \"$(OutDir)%(Filename)_compiled.h\"" VS_SHADER_TYPE Pixel  VS_SHADER_MODEL 4.0 VS_SHADER_ENTRYPOINT frag)
-
-	# Include the directory where the compiled shader header files will be put
-	# Note: include_directories/target_include_directories directories don't work here
-	# Cmake treats $(OutDir) as a relative path and prepends stuff to it to make it absolute
-	# Instead, use the compiler flags to add the include directory to avoid changes from cmake
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \"/I$(OutDir)\"")
 
 	# Add the DirectX11 example to our list of targets which is used below
 	list(APPEND allTargets FoveDirectX11Example)
@@ -153,6 +156,7 @@ if(FOVE_BUILD_VULKAN_EXAMPLE)
 		$<$<PLATFORM_ID:Linux>:Threads::Threads>
 		Vulkan::Vulkan
 		X11::X11
+		${CMAKE_DL_LIBS}
 	)
 
 	# Add the Vulkan example to our list of targets which is used below
@@ -168,13 +172,43 @@ else()
 endif()
 if(FOVE_BUILD_OPENGL_EXAMPLE)
 	# Declare the OpenGL example target
-	add_executable(FoveOpenGLExample ${nativeUtilFiles} OpenGLExample.cpp Util.h Util.cpp OpenGLUtil.h OpenGLUtil.cpp)
-	target_include_directories(FoveOpenGLExample PRIVATE ${genericIncludeDirs})
-	target_compile_definitions(FoveOpenGLExample PRIVATE ${genericDefinitions})
-	target_link_libraries(FoveOpenGLExample ${genericLinkLibraries} "opengl32.lib")
+	add_executable(FoveOpenGLExample ${nativeUtilFiles} OpenGLExample.cpp Util.h Util.cpp OpenGLUtil.h OpenGLUtil.cpp Model.h)
 
 	# Add the OpenGL example to our list of targets which is used below
 	list(APPEND allTargets FoveOpenGLExample)
+
+	# Link the OpenGL lbiraries
+	if(WIN32)
+		# On windows, just link the opengl files directly without going through CMake's find_package system
+		# OpenGL can be easily linked via the opengl32.lib file
+		# The header files are included in the Windows SDK
+		target_include_directories(FoveOpenGLExample PRIVATE ${genericIncludeDirs})
+		target_compile_definitions(FoveOpenGLExample PRIVATE ${genericDefinitions})
+		target_link_libraries(FoveOpenGLExample ${genericLinkLibraries} opengl32.lib)
+	else()
+		# On mac and linux, we use find_package from CMake
+
+		# On linux we additionally use XLIB + EGL to create a Window with OpenGL, for this example
+		# This means no native Wayland suport (though XWayland should have us covered for now)
+		# For those who don't want to render to a window, only the headset, it's possible to just use headless EGL with no window system
+		if (NOT WIN32 AND NOT APPLE)
+			# X11
+			find_package(X11 REQUIRED)
+			list(APPEND openglIncludeDirs ${X11_INCLUDE_DIR})
+			list(APPEND openglLinkLibraries ${X11_LIBRARIES})
+
+			# EGL
+			list(APPEND openglPackages EGL)
+			list(APPEND openglLinkLibraries OpenGL::EGL)
+		endif ()
+
+		# Find OpenGL (and other related opengl packages like EGL if needed)
+		find_package(OpenGL REQUIRED OpenGL ${openglPackages})
+
+		target_include_directories(FoveOpenGLExample PRIVATE ${genericIncludeDirs} ${openglIncludeDirs})
+		target_compile_definitions(FoveOpenGLExample PRIVATE ${genericDefinitions})
+		target_link_libraries(FoveOpenGLExample ${genericLinkLibraries} OpenGL::OpenGL ${openglLinkLibraries})
+	endif()
 endif()
 
 # Create the data example, and the option to enable/disable it

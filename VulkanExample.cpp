@@ -4,18 +4,21 @@
 #include "NativeUtil.h"
 #include "Util.h"
 #include <FoveAPI.h>
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <optional>
-#include <stdexcept>
+#include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 // shader data generated in `build/shaders`
 #include <DemoScene.frag.spv.h>
@@ -50,7 +53,8 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 // Use std namespace for convenience
 using namespace std;
 
-namespace {
+namespace
+{
 
 // Players height above the ground (in meters)
 constexpr float playerHeight = 1.6f;
@@ -60,13 +64,13 @@ constexpr auto appName = "FoveVulkanExample";
 constexpr uint32_t N_MAX_FRAMES_IN_FLIGHT = 2U;
 
 // Required extensions
-constexpr auto requiredInstanceExtensions = array<const char* const, 3> {
+constexpr auto requiredInstanceExtensions = array<const char* const, 3>{
 	VK_KHR_SURFACE_EXTENSION_NAME,
 	VK_KHR_XLIB_SURFACE_EXTENSION_NAME, // FIXME Linux specific
 	VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 };
 
-constexpr auto requiredDeviceExtensions = array<const char* const, 3> {
+constexpr auto requiredDeviceExtensions = array<const char* const, 3>{
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 
 	// VK_KHR_external_memory extension and its implementation on each OS
@@ -80,36 +84,41 @@ constexpr auto requiredDeviceExtensions = array<const char* const, 3> {
 constexpr auto disableValidationLayers = false;
 constexpr auto disableDebugUtils = false;
 constexpr auto validationLayerName = "VK_LAYER_KHRONOS_validation";
-PFN_vkCreateDebugUtilsMessengerEXT g_vkCreateDebugUtilsMessengerEXT { nullptr };
-PFN_vkDestroyDebugUtilsMessengerEXT g_vkDestroyDebugUtilsMessengerEXT { nullptr };
-PFN_vkSubmitDebugUtilsMessageEXT g_vkSubmitDebugUtilsMessageEXT { nullptr };
+PFN_vkCreateDebugUtilsMessengerEXT g_vkCreateDebugUtilsMessengerEXT{nullptr};
+PFN_vkDestroyDebugUtilsMessengerEXT g_vkDestroyDebugUtilsMessengerEXT{nullptr};
+PFN_vkSubmitDebugUtilsMessageEXT g_vkSubmitDebugUtilsMessageEXT{nullptr};
 
-extern "C" {
-
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
+#ifndef FOVE_CPP_SAMPLE_BUILD_IN_TREE
+extern "C"
 {
-	return g_vkCreateDebugUtilsMessengerEXT(instance, createInfo, pAllocator, pMessenger);
-}
 
-VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-	return g_vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, pAllocator);
-}
+	VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
+	{
+		return g_vkCreateDebugUtilsMessengerEXT(instance, createInfo, pAllocator, pMessenger);
+	}
 
-VKAPI_ATTR void VKAPI_CALL vkSubmitDebugUtilsMessageEXT(VkInstance instance, VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData)
-{
-	return g_vkSubmitDebugUtilsMessageEXT(instance, messageSeverity, messageTypes, pCallbackData);
-}
+	VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+	{
+		return g_vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, pAllocator);
+	}
+
+	VKAPI_ATTR void VKAPI_CALL vkSubmitDebugUtilsMessageEXT(VkInstance instance, VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData)
+	{
+		return g_vkSubmitDebugUtilsMessageEXT(instance, messageSeverity, messageTypes, pCallbackData);
+	}
 
 } // extern "C"
+#endif
 
-struct QueueFamily {
+struct QueueFamily
+{
 	uint32_t index;
 };
 
 // Make it match the alignment of the data from Model.h (float levelModelVerts[]) (pos: 4 floats, color: 3 floats).
 // But note that the pos.w is 0.0F in the data, so we need to set it to 1.0F in the shader.
-struct RenderTextureVertex {
+struct RenderTextureVertex
+{
 	float pos[4];
 	float color[3];
 
@@ -119,7 +128,7 @@ struct RenderTextureVertex {
 
 	static vk::VertexInputBindingDescription getBindingDescription()
 	{
-		vk::VertexInputBindingDescription bindingDescription {};
+		vk::VertexInputBindingDescription bindingDescription{};
 		bindingDescription.binding = 0;
 		bindingDescription.stride = sizeof(RenderTextureVertex);
 		bindingDescription.inputRate = vk::VertexInputRate::eVertex;
@@ -129,7 +138,7 @@ struct RenderTextureVertex {
 
 	static array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
 	{
-		array<vk::VertexInputAttributeDescription, 2> attributeDescriptions {};
+		array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
@@ -146,20 +155,23 @@ struct RenderTextureVertex {
 };
 static_assert(sizeof(RenderTextureVertex) == 7 * sizeof(float));
 
-struct RenderTextureUbo {
-	Fove::Matrix44 mvp {};
+struct RenderTextureUbo
+{
+	Fove::Matrix44 mvp{};
 	// For highlighting the gazed object in the scene.
 	// A valid object has non-negative integral value (stored in a float for simplicity)
-	float selection { -1.0F };
+	float selection{-1.0F};
 };
-struct RenderTextureUboLR {
+struct RenderTextureUboLR
+{
 	RenderTextureUbo uboL;
 	RenderTextureUbo uboR;
 };
 static_assert(sizeof(RenderTextureUbo) == 17 * sizeof(float));
 static_assert(sizeof(RenderTextureUboLR) == 2 * sizeof(RenderTextureUbo));
 
-struct SwapchainVertex {
+struct SwapchainVertex
+{
 	float pos[2];
 	float uv[2];
 
@@ -167,7 +179,7 @@ struct SwapchainVertex {
 
 	static vk::VertexInputBindingDescription getBindingDescription()
 	{
-		vk::VertexInputBindingDescription bindingDescription {};
+		vk::VertexInputBindingDescription bindingDescription{};
 		bindingDescription.binding = 0;
 		bindingDescription.stride = sizeof(SwapchainVertex);
 		bindingDescription.inputRate = vk::VertexInputRate::eVertex;
@@ -177,7 +189,7 @@ struct SwapchainVertex {
 
 	static array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
 	{
-		array<vk::VertexInputAttributeDescription, 2> attributeDescriptions {};
+		array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
@@ -194,54 +206,50 @@ struct SwapchainVertex {
 };
 static_assert(sizeof(SwapchainVertex) == 4 * sizeof(float));
 
-struct SwapchainUbo {
+struct SwapchainUbo
+{
 	float dummy;
 };
 
 template <typename T>
-class Span {
+class Span
+{
 public:
 	Span(Span&&) = default;
 	Span(const Span&) = default;
 
 	template <size_t N>
 	explicit Span(float (&data)[N])
-	    : m_data { reinterpret_cast<T*>(data) }
-	    , m_size { (N * sizeof(float)) / sizeof(T) }
+		: m_data{reinterpret_cast<T*>(data)}, m_size{(N * sizeof(float)) / sizeof(T)}
 	{
 	}
 
 	// This is a weired api..
 	template <size_t N>
 	explicit Span(const float (&data)[N])
-	    : m_data { reinterpret_cast<const T*>(data) }
-	    , m_size { (N * sizeof(float)) / sizeof(T) }
+		: m_data{reinterpret_cast<const T*>(data)}, m_size{(N * sizeof(float)) / sizeof(T)}
 	{
 	}
 
 	template <size_t N>
 	explicit Span(array<T, N>& data)
-	    : m_data { reinterpret_cast<T*>(data) }
-	    , m_size { N / sizeof(T) }
+		: m_data{reinterpret_cast<T*>(data)}, m_size{N / sizeof(T)}
 	{
 	}
 
 	template <size_t N>
 	explicit Span(const array<T, N>& data)
-	    : m_data { reinterpret_cast<const T*>(data) }
-	    , m_size { N / sizeof(T) }
+		: m_data{reinterpret_cast<const T*>(data)}, m_size{N / sizeof(T)}
 	{
 	}
 
 	explicit Span(vector<T>& vs)
-	    : m_data { vs.data() }
-	    , m_size { vs.size() }
+		: m_data{vs.data()}, m_size{vs.size()}
 	{
 	}
 
 	explicit Span(const vector<remove_cv_t<T>>& vs)
-	    : m_data { vs.data() }
-	    , m_size { vs.size() }
+		: m_data{vs.data()}, m_size{vs.size()}
 	{
 	}
 
@@ -259,22 +267,22 @@ private:
 // This is not used, but has the same structure as levelModelVerts from Model.h
 const vector<RenderTextureVertex> g_vertices = {
 	// Each vertex has 7 attributes (x,y,z,selectionId; r,g,b) organized as vec4+vec3
-	{ { 1.0F, 1.0F, 0.0F, 0.0F }, { 0.0F, 0.0F, 1.0F } },
-	{ { -1.0F, 1.0F, 0.0F, 0.0F }, { 0.0F, 1.0F, 0.0F } },
-	{ { 0.0F, -1.0F, 0.0F, 0.0F }, { 1.0F, 0.0F, 0.0F } },
+	{{1.0F, 1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F}},
+	{{-1.0F, 1.0F, 0.0F, 0.0F}, {0.0F, 1.0F, 0.0F}},
+	{{0.0F, -1.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F}},
 };
 
 // For showing render texture on host screen
 const vector<SwapchainVertex> g_vertices2 = {
-	{ { -1.0F, -1.0F }, { 0.0F, 0.0F } },
-	{ { 1.0F, -1.0F }, { 1.0F, 0.0F } },
-	{ { 1.0F, 1.0F }, { 1.0F, 1.0F } },
-	{ { -1.0F, 1.0F }, { 0.0F, 1.0F } }
-};
-const vector<SwapchainVertex::IndexType> g_indices2 = { 0, 1, 2, 2, 3, 0 };
+	{{-1.0F, -1.0F}, {0.0F, 0.0F}},
+	{{1.0F, -1.0F}, {1.0F, 0.0F}},
+	{{1.0F, 1.0F}, {1.0F, 1.0F}},
+	{{-1.0F, 1.0F}, {0.0F, 1.0F}}};
+const vector<SwapchainVertex::IndexType> g_indices2 = {0, 1, 2, 2, 3, 0};
 
 // Wait for all device resources to be destroyed before destroying the device
-struct VulkanWaitDeviceIdle {
+struct VulkanWaitDeviceIdle
+{
 	vk::Device device;
 
 	~VulkanWaitDeviceIdle()
@@ -284,21 +292,24 @@ struct VulkanWaitDeviceIdle {
 };
 
 // vk::Device::waitIdle() does not automatically wait for fences the device has created
-struct VulkanWaitAllFences {
+struct VulkanWaitAllFences
+{
 	vk::Device device;
 	vector<vk::Fence> fences;
 
 	~VulkanWaitAllFences()
 	{
-		const bool waitAll { true };
+		const bool waitAll{true};
 		if (const vk::Result res = device.waitForFences(fences, waitAll, chrono::duration_cast<chrono::nanoseconds>(chrono::milliseconds(2500)).count());
-		    res != vk::Result::eSuccess) {
+			res != vk::Result::eSuccess)
+		{
 			cerr << "Failed to wait for a GPU fence: " << to_string(res) << '\n';
 		}
 	}
 };
 
-class VulkanResources {
+class VulkanResources
+{
 public:
 	void createInstance();
 	void setupDebugMessenger();
@@ -361,79 +372,79 @@ private:
 
 private:
 	friend class VulkanExample;
-	bool m_enableValidationLayers { false };
-	bool m_enableDebugUtils { false };
-	vk::UniqueInstance m_instance {};
-	vk::UniqueDebugUtilsMessengerEXT m_debugUtilsMessenger {};
-	vk::UniqueSurfaceKHR m_surface {};
+	bool m_enableValidationLayers{false};
+	bool m_enableDebugUtils{false};
+	vk::UniqueInstance m_instance{};
+	vk::UniqueDebugUtilsMessengerEXT m_debugUtilsMessenger{};
+	vk::UniqueSurfaceKHR m_surface{};
 
-	vk::PhysicalDevice m_physicalDevice {};
-	QueueFamily m_queueFamily {};
-	vk::UniqueDevice m_device {};
-	VulkanWaitDeviceIdle m_deviceWaitIdle { m_device.get() };
-	vk::Queue m_queue {}; // we share graphics/presentation queues
+	vk::PhysicalDevice m_physicalDevice{};
+	QueueFamily m_queueFamily{};
+	vk::UniqueDevice m_device{};
+	VulkanWaitDeviceIdle m_deviceWaitIdle{m_device.get()};
+	vk::Queue m_queue{}; // we share graphics/presentation queues
 
 	////////////////////////////////
 	// Render to texture for submission to Fove runtime
-	vk::Format m_renderTextureImageFormat {};
-	vk::Extent2D m_renderTextureExtent {};
-	vector<vk::UniqueDeviceMemory> m_renderTextureDeviceMemories {};
-	vector<vk::UniqueImage> m_renderTextureImages {};
-	vector<vk::UniqueImageView> m_renderTextureImageViews {};
-	vector<vk::UniqueFramebuffer> m_renderTextureFramebuffers {};
+	vk::Format m_renderTextureImageFormat{};
+	vk::Extent2D m_renderTextureExtent{};
+	vector<vk::UniqueDeviceMemory> m_renderTextureDeviceMemories{};
+	vector<vk::UniqueImage> m_renderTextureImages{};
+	vector<vk::UniqueImageView> m_renderTextureImageViews{};
+	vector<vk::UniqueFramebuffer> m_renderTextureFramebuffers{};
 
-	vk::UniqueRenderPass m_renderTextureRenderPass {};
-	vk::UniqueDescriptorSetLayout m_renderTextureDescriptorSetLayout {};
-	vk::UniquePipelineLayout m_renderTexturePipelineLayout {};
-	vk::UniquePipeline m_renderTextureGraphicsPipeline {};
+	vk::UniqueRenderPass m_renderTextureRenderPass{};
+	vk::UniqueDescriptorSetLayout m_renderTextureDescriptorSetLayout{};
+	vk::UniquePipelineLayout m_renderTexturePipelineLayout{};
+	vk::UniquePipeline m_renderTextureGraphicsPipeline{};
 
-	vk::UniqueBuffer m_renderTextureVertexBuffer {};
-	vk::UniqueDeviceMemory m_renderTextureVertexBufferMemory {};
-	vk::UniqueBuffer m_renderTextureIndexBuffer {};
-	vk::UniqueDeviceMemory m_renderTextureIndexBufferMemory {};
+	vk::UniqueBuffer m_renderTextureVertexBuffer{};
+	vk::UniqueDeviceMemory m_renderTextureVertexBufferMemory{};
+	vk::UniqueBuffer m_renderTextureIndexBuffer{};
+	vk::UniqueDeviceMemory m_renderTextureIndexBufferMemory{};
 
-	vector<vk::UniqueBuffer> m_renderTextureUniformBuffers {};
-	vector<vk::UniqueDeviceMemory> m_renderTextureUniformBufferMemories {};
-	vk::UniqueDescriptorPool m_renderTextureDescriptorPool {};
-	vector<vk::UniqueDescriptorSet> m_renderTextureDescriptorSets {};
+	vector<vk::UniqueBuffer> m_renderTextureUniformBuffers{};
+	vector<vk::UniqueDeviceMemory> m_renderTextureUniformBufferMemories{};
+	vk::UniqueDescriptorPool m_renderTextureDescriptorPool{};
+	vector<vk::UniqueDescriptorSet> m_renderTextureDescriptorSets{};
 
 	////////////////////////////////
 	// Render to host screen
-	vk::Format m_swapchainImageFormat {};
-	vk::Extent2D m_swapchainExtent {};
-	vk::UniqueSwapchainKHR m_swapchain {};
-	vector<vk::Image> m_swapchainImages {};
-	vector<vk::UniqueImageView> m_swapchainImageViews {};
-	vector<vk::UniqueFramebuffer> m_swapchainFramebuffers {};
+	vk::Format m_swapchainImageFormat{};
+	vk::Extent2D m_swapchainExtent{};
+	vk::UniqueSwapchainKHR m_swapchain{};
+	vector<vk::Image> m_swapchainImages{};
+	vector<vk::UniqueImageView> m_swapchainImageViews{};
+	vector<vk::UniqueFramebuffer> m_swapchainFramebuffers{};
 
-	vk::UniqueRenderPass m_swapchainRenderPass {};
-	vk::UniqueDescriptorSetLayout m_swapchainDescriptorSetLayout {};
-	vk::UniquePipelineLayout m_swapchainPipelineLayout {};
-	vk::UniquePipeline m_swapchainGraphicsPipeline {};
+	vk::UniqueRenderPass m_swapchainRenderPass{};
+	vk::UniqueDescriptorSetLayout m_swapchainDescriptorSetLayout{};
+	vk::UniquePipelineLayout m_swapchainPipelineLayout{};
+	vk::UniquePipeline m_swapchainGraphicsPipeline{};
 
-	vk::UniqueBuffer m_swapchainVertexBuffer {};
-	vk::UniqueDeviceMemory m_swapchainVertexBufferMemory {};
-	vk::UniqueBuffer m_swapchainIndexBuffer {};
-	vk::UniqueDeviceMemory m_swapchainIndexBufferMemory {};
+	vk::UniqueBuffer m_swapchainVertexBuffer{};
+	vk::UniqueDeviceMemory m_swapchainVertexBufferMemory{};
+	vk::UniqueBuffer m_swapchainIndexBuffer{};
+	vk::UniqueDeviceMemory m_swapchainIndexBufferMemory{};
 
 	// We do not use uniform buffers for this example, but we leave it here as a reference
-	vector<vk::UniqueBuffer> m_swapchainUniformBuffers {};
-	vector<vk::UniqueDeviceMemory> m_swapchainUniformBufferMemories {};
-	vk::UniqueSampler m_swapchainTextureSampler {};
-	vk::UniqueDescriptorPool m_swapchainDescriptorPool {};
-	vector<vk::UniqueDescriptorSet> m_swapchainDescriptorSets {};
+	vector<vk::UniqueBuffer> m_swapchainUniformBuffers{};
+	vector<vk::UniqueDeviceMemory> m_swapchainUniformBufferMemories{};
+	vk::UniqueSampler m_swapchainTextureSampler{};
+	vk::UniqueDescriptorPool m_swapchainDescriptorPool{};
+	vector<vk::UniqueDescriptorSet> m_swapchainDescriptorSets{};
 
-	atomic_bool m_swapchainFramebufferResized { false };
+	atomic_bool m_swapchainFramebufferResized{false};
 
 	////////////////////////////////
-	vk::UniqueCommandPool m_commandPool {};
-	vector<vk::UniqueCommandBuffer> m_commandBuffers {};
+	vk::UniqueCommandPool m_commandPool{};
+	vector<vk::UniqueCommandBuffer> m_commandBuffers{};
 
-	vector<vk::UniqueSemaphore> m_imageAvailableSemaphores {};
-	vector<vk::UniqueSemaphore> m_renderFinishedSemaphores {};
-	vector<vk::UniqueFence> m_inFlightFences {};
-	vector<vk::Fence> m_imageInUseFences {};
-	VulkanWaitAllFences m_waitAllFences {};
+	vector<vk::UniqueSemaphore> m_imageAvailableSemaphores{};
+	vector<vk::UniqueSemaphore> m_renderFinishedSemaphores{};
+	vector<vk::UniqueFence> m_inFlightFences{};
+	vector<vk::Fence> m_imageInUseFences{};
+	VulkanWaitAllFences m_waitAllFences{};
 	size_t m_currentFrame = 0;
 };
 
@@ -453,10 +464,10 @@ void loadDebugMessengers(const vk::Instance instance)
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-    VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
-    void*)
+	VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+	VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+	VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
+	void*)
 {
 	const auto message = pCallbackData->pMessage;
 
@@ -484,13 +495,20 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
 		return flags;
 	}();
 
-	if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eError) {
+	if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eError)
+	{
 		cerr << "Validation Layer: " << to_string(severityFlags) << ": " << to_string(typeFlags) << ": " << message << '\n';
-	} else if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning) {
+	}
+	else if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
+	{
 		cerr << "Validation Layer: " << to_string(severityFlags) << ": " << to_string(typeFlags) << ": " << message << '\n';
-	} else if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo) {
+	}
+	else if (severityFlags & vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo)
+	{
 		cerr << "Validation Layer: " << to_string(severityFlags) << ": " << to_string(typeFlags) << ": " << message << '\n';
-	} else {
+	}
+	else
+	{
 		cerr << "Validation Layer: " << to_string(severityFlags) << ": " << to_string(typeFlags) << ": " << message << '\n';
 	}
 
@@ -519,25 +537,28 @@ bool checkDebugUtilsSupport()
 template <typename T>
 auto checkAndGetResult(vk::ResultValue<T> res)
 {
-	if (res.result != vk::Result::eSuccess) {
+	if (res.result != vk::Result::eSuccess)
+	{
 		throw "Failed to create graphics pipeline";
 	}
-	return move(res.value);
+	return std::move(res.value);
 }
 template <typename Type, typename Deleter>
 auto checkAndGetResult(vk::UniqueHandle<Type, Deleter> res)
 {
-	return move(res);
+	return std::move(res);
 }
 
-struct BufferAndMemory {
+struct BufferAndMemory
+{
 	vk::UniqueBuffer buffer;
 	vk::UniqueDeviceMemory deviceMemory;
 };
 
 uint32_t findMemoryTypeIndex(const vk::MemoryRequirements reqs, const vk::PhysicalDeviceMemoryProperties props, const vk::MemoryPropertyFlags flags)
 {
-	for (auto i = 0u; i < props.memoryTypeCount; ++i) {
+	for (auto i = 0u; i < props.memoryTypeCount; ++i)
+	{
 		if ((reqs.memoryTypeBits & (1 << i)) && (props.memoryTypes[i].propertyFlags & flags) == flags)
 			return i;
 	}
@@ -545,9 +566,9 @@ uint32_t findMemoryTypeIndex(const vk::MemoryRequirements reqs, const vk::Physic
 }
 
 uint32_t findMemoryType(
-    const vk::PhysicalDevice physicalDevice,
-    const vk::MemoryRequirements reqs,
-    const vk::MemoryPropertyFlags flags)
+	const vk::PhysicalDevice physicalDevice,
+	const vk::MemoryRequirements reqs,
+	const vk::MemoryPropertyFlags flags)
 {
 	vk::PhysicalDeviceMemoryProperties props;
 	physicalDevice.getMemoryProperties(&props);
@@ -561,11 +582,14 @@ optional<QueueFamily> findQueueFamilies(const vk::PhysicalDevice physicalDevice,
 	vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
 
 	uint32_t i = 0;
-	for (const auto& queueFamily : queueFamilies) {
-		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
+	for (const auto& queueFamily : queueFamilies)
+	{
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+		{
 			const vk::Bool32 presentSupport = physicalDevice.getSurfaceSupportKHR(i, surface);
-			if (presentSupport) {
-				return QueueFamily { i };
+			if (presentSupport)
+			{
+				return QueueFamily{i};
 			}
 		}
 		++i;
@@ -574,15 +598,15 @@ optional<QueueFamily> findQueueFamilies(const vk::PhysicalDevice physicalDevice,
 }
 
 vk::UniqueImage createTextureImage(const vk::Device device,
-    const vk::Extent2D extent,
-    const uint32_t numLayers,
-    const vk::Format format,
-    const vk::ImageTiling tiling,
-    const vk::ImageUsageFlags usage)
+								   const vk::Extent2D extent,
+								   const uint32_t numLayers,
+								   const vk::Format format,
+								   const vk::ImageTiling tiling,
+								   const vk::ImageUsageFlags usage)
 {
-	vk::ImageCreateInfo imageInfo {};
+	vk::ImageCreateInfo imageInfo{};
 	imageInfo.imageType = vk::ImageType::e2D;
-	imageInfo.extent = vk::Extent3D { extent.width, extent.height, static_cast<uint32_t>(1) };
+	imageInfo.extent = vk::Extent3D{extent.width, extent.height, static_cast<uint32_t>(1)};
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = numLayers;
 	imageInfo.format = format;
@@ -592,7 +616,7 @@ vk::UniqueImage createTextureImage(const vk::Device device,
 	imageInfo.sharingMode = vk::SharingMode::eExclusive; // one queue family at a time
 	imageInfo.samples = vk::SampleCountFlagBits::e1;
 
-	vk::ExternalMemoryImageCreateInfo externalInfo {};
+	vk::ExternalMemoryImageCreateInfo externalInfo{};
 #ifdef __linux__
 	externalInfo.handleTypes = vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd;
 	imageInfo.pNext = &externalInfo;
@@ -604,7 +628,7 @@ vk::UniqueImage createTextureImage(const vk::Device device,
 
 vk::UniqueImageView createTextureImageView(const vk::Device device, const vk::Image image, const uint32_t numLayers, const vk::ImageViewType viewType, const vk::Format format)
 {
-	vk::ImageViewCreateInfo viewInfo {};
+	vk::ImageViewCreateInfo viewInfo{};
 	viewInfo.image = image;
 	viewInfo.viewType = viewType;
 	viewInfo.format = format;
@@ -617,10 +641,10 @@ vk::UniqueImageView createTextureImageView(const vk::Device device, const vk::Im
 }
 
 vk::UniqueDeviceMemory createTextureDeviceMemory(const vk::Device device,
-    const vk::Image image,
-    const vk::MemoryRequirements memReqs,
-    const vk::PhysicalDeviceMemoryProperties devMemProps,
-    const vk::MemoryPropertyFlags memFlags)
+												 const vk::Image image,
+												 const vk::MemoryRequirements memReqs,
+												 const vk::PhysicalDeviceMemoryProperties devMemProps,
+												 const vk::MemoryPropertyFlags memFlags)
 {
 	vk::MemoryAllocateInfo allocInfo = {};
 	allocInfo.allocationSize = memReqs.size;
@@ -628,9 +652,9 @@ vk::UniqueDeviceMemory createTextureDeviceMemory(const vk::Device device,
 
 // Prepare for import/export
 #ifdef __linux__
-	vk::MemoryDedicatedAllocateInfo dedicatedAllocInfo {};
+	vk::MemoryDedicatedAllocateInfo dedicatedAllocInfo{};
 	dedicatedAllocInfo.image = image;
-	vk::ExportMemoryAllocateInfo exportAllocInfo {};
+	vk::ExportMemoryAllocateInfo exportAllocInfo{};
 	exportAllocInfo.pNext = &dedicatedAllocInfo;
 	exportAllocInfo.handleTypes = vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd;
 	allocInfo.pNext = &exportAllocInfo;
@@ -642,7 +666,7 @@ vk::UniqueDeviceMemory createTextureDeviceMemory(const vk::Device device,
 
 vk::UniqueSampler createTextureSampler(const vk::Device device)
 {
-	vk::SamplerCreateInfo samplerInfo {};
+	vk::SamplerCreateInfo samplerInfo{};
 	samplerInfo.magFilter = vk::Filter::eLinear;
 	samplerInfo.minFilter = vk::Filter::eLinear;
 	samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
@@ -663,15 +687,15 @@ vk::UniqueSampler createTextureSampler(const vk::Device device)
 }
 
 BufferAndMemory createBufferAndMemory(
-    const vk::PhysicalDevice physicalDevice,
-    const vk::Device device,
-    const vk::DeviceSize size,
-    const vk::BufferUsageFlags usage,
-    const vk::MemoryPropertyFlags properties,
-    const uint32_t queueFamilyIndex)
+	const vk::PhysicalDevice physicalDevice,
+	const vk::Device device,
+	const vk::DeviceSize size,
+	const vk::BufferUsageFlags usage,
+	const vk::MemoryPropertyFlags properties,
+	const uint32_t queueFamilyIndex)
 {
 	const vk::BufferCreateInfo bufferInfo = [size, usage, &queueFamilyIndex] {
-		vk::BufferCreateInfo bufferInfo {};
+		vk::BufferCreateInfo bufferInfo{};
 		bufferInfo.size = size;
 		bufferInfo.usage = usage;
 		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
@@ -692,24 +716,25 @@ BufferAndMemory createBufferAndMemory(
 	}();
 	auto bufferMemory = device.allocateMemoryUnique(allocInfo);
 
-	const vk::DeviceSize offset { 0 };
+	const vk::DeviceSize offset{0};
 	device.bindBufferMemory(buffer.get(), bufferMemory.get(), offset);
-	return BufferAndMemory { move(buffer), move(bufferMemory) };
+	return BufferAndMemory{std::move(buffer), std::move(bufferMemory)};
 }
 
-struct BuffersAndMemories {
+struct BuffersAndMemories
+{
 	vector<vk::UniqueBuffer> buffers;
 	vector<vk::UniqueDeviceMemory> deviceMemories;
 };
 
 BuffersAndMemories createBuffersAndMemories(
-    const vk::PhysicalDevice physicalDevice,
-    const vk::Device device,
-    const size_t swapchainLength,
-    const vk::DeviceSize bufferSize,
-    const vk::BufferUsageFlags usage,
-    const vk::MemoryPropertyFlags properties,
-    uint32_t queueFamilyIndex)
+	const vk::PhysicalDevice physicalDevice,
+	const vk::Device device,
+	const size_t swapchainLength,
+	const vk::DeviceSize bufferSize,
+	const vk::BufferUsageFlags usage,
+	const vk::MemoryPropertyFlags properties,
+	uint32_t queueFamilyIndex)
 {
 	vector<vk::UniqueBuffer> buffers;
 	buffers.reserve(swapchainLength);
@@ -717,21 +742,22 @@ BuffersAndMemories createBuffersAndMemories(
 	vector<vk::UniqueDeviceMemory> deviceMemories;
 	deviceMemories.reserve(swapchainLength);
 
-	for (size_t i = 0; i < swapchainLength; ++i) {
+	for (size_t i = 0; i < swapchainLength; ++i)
+	{
 		auto res = createBufferAndMemory(physicalDevice, device, bufferSize, usage, properties, queueFamilyIndex);
-		buffers.emplace_back(move(res.buffer));
-		deviceMemories.emplace_back(move(res.deviceMemory));
+		buffers.emplace_back(std::move(res.buffer));
+		deviceMemories.emplace_back(std::move(res.deviceMemory));
 	}
-	return BuffersAndMemories { move(buffers), move(deviceMemories) };
+	return BuffersAndMemories{std::move(buffers), std::move(deviceMemories)};
 }
 
 void copyBuffer(
-    const vk::Device device,
-    const vk::CommandPool commandPool,
-    const vk::Queue graphicsQueue,
-    const vk::Buffer srcBuffer,
-    const vk::Buffer dstBuffer,
-    const vk::DeviceSize size)
+	const vk::Device device,
+	const vk::CommandPool commandPool,
+	const vk::Queue graphicsQueue,
+	const vk::Buffer srcBuffer,
+	const vk::Buffer dstBuffer,
+	const vk::DeviceSize size)
 {
 	const vk::CommandBufferAllocateInfo allocInfo = [commandPool] {
 		vk::CommandBufferAllocateInfo allocInfo;
@@ -769,19 +795,21 @@ void copyBuffer(
 	}();
 
 	const auto res = graphicsQueue.submit(1, &submitInfo, nullptr); // no fence
-	if (res == vk::Result::eErrorOutOfDateKHR) {
+	if (res == vk::Result::eErrorOutOfDateKHR)
+	{
 		cerr << "Surface out of data (maybe resized)\n";
 	}
-	if (res != vk::Result::eSuccess) {
+	if (res != vk::Result::eSuccess)
+	{
 		throw "Failed to submit graphics queue";
 	}
 	graphicsQueue.waitIdle();
 }
 
 vk::UniqueRenderPass createSimpleRenderPass(
-    const vk::Device device,
-    const vk::Format imageFormat,
-    const vk::ImageLayout finalLayout)
+	const vk::Device device,
+	const vk::Format imageFormat,
+	const vk::ImageLayout finalLayout)
 {
 	const vk::AttachmentDescription colorAttachment = [imageFormat, finalLayout] {
 		vk::AttachmentDescription colorAttachment;
@@ -830,7 +858,7 @@ vk::UniqueRenderPass createSimpleRenderPass(
 		dependencyOut.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 		dependencyOut.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
-		return array { dependencyIn, dependencyOut };
+		return array{dependencyIn, dependencyOut};
 	}();
 
 	const vk::RenderPassCreateInfo renderPassInfo = [&colorAttachment, &subpass, &dependencies] {
@@ -849,7 +877,7 @@ vk::UniqueRenderPass createSimpleRenderPass(
 }
 
 vk::UniqueDescriptorSetLayout createDescriptorSetLayout(const vk::Device device, const uint32_t uboDescriptorCount,
-    const uint32_t samplerDescriptorCount)
+														const uint32_t samplerDescriptorCount)
 {
 	vector<vk::DescriptorSetLayoutBinding> bindings;
 	bindings.reserve(uboDescriptorCount + samplerDescriptorCount);
@@ -857,8 +885,9 @@ vk::UniqueDescriptorSetLayout createDescriptorSetLayout(const vk::Device device,
 	// create layout for uniorm buffer objects and samplers.
 	// Assume that all ubos have earlier binding number than samplers
 	uint32_t binding = 0;
-	for (auto i = 0U; i < uboDescriptorCount; ++i) {
-		vk::DescriptorSetLayoutBinding uboLayoutBinding {};
+	for (auto i = 0U; i < uboDescriptorCount; ++i)
+	{
+		vk::DescriptorSetLayoutBinding uboLayoutBinding{};
 		{
 			uboLayoutBinding.binding = 0;
 			uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
@@ -866,21 +895,22 @@ vk::UniqueDescriptorSetLayout createDescriptorSetLayout(const vk::Device device,
 			uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
 			uboLayoutBinding.pImmutableSamplers = nullptr;
 		}
-		bindings.emplace_back(move(uboLayoutBinding));
+		bindings.emplace_back(std::move(uboLayoutBinding));
 	}
 
 	// for texture sampler
-	for (auto i = 0U; i < samplerDescriptorCount; ++i) {
-		vk::DescriptorSetLayoutBinding samplerLayoutBinding {};
+	for (auto i = 0U; i < samplerDescriptorCount; ++i)
+	{
+		vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
 		samplerLayoutBinding.binding = uboDescriptorCount + i;
 		samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 		samplerLayoutBinding.descriptorCount = samplerDescriptorCount;
 		samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
-		bindings.emplace_back(move(samplerLayoutBinding));
+		bindings.emplace_back(std::move(samplerLayoutBinding));
 	}
 
-	vk::DescriptorSetLayoutCreateInfo createInfo {};
+	vk::DescriptorSetLayoutCreateInfo createInfo{};
 	createInfo.pBindings = bindings.data();
 	createInfo.bindingCount = bindings.size();
 
@@ -888,10 +918,10 @@ vk::UniqueDescriptorSetLayout createDescriptorSetLayout(const vk::Device device,
 }
 
 vk::UniquePipelineLayout createSimpleGraphicsPipelineLayout(const vk::Device device,
-    const vector<vk::DescriptorSetLayout>& setLayouts)
+															const vector<vk::DescriptorSetLayout>& setLayouts)
 {
 	const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = [&setLayouts] {
-		vk::PipelineLayoutCreateInfo pipelineLayoutInfo {};
+		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.setLayoutCount = setLayouts.size();
 		pipelineLayoutInfo.pSetLayouts = setLayouts.data();
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
@@ -911,12 +941,12 @@ vk::UniqueShaderModule createShaderModule(const vk::Device device, const vector<
 }
 
 vk::UniquePipeline createSimpleGraphicsPipeline(const vk::Device device,
-    const vector<unsigned char>& vertShaderCode,
-    const vector<unsigned char>& fragShaderCode,
-    const vk::Extent2D extent,
-    const vk::PipelineLayout pipelineLayout,
-    const vk::RenderPass renderPass,
-    const vk::PipelineVertexInputStateCreateInfo& vertexInputState)
+												const vector<unsigned char>& vertShaderCode,
+												const vector<unsigned char>& fragShaderCode,
+												const vk::Extent2D extent,
+												const vk::PipelineLayout pipelineLayout,
+												const vk::RenderPass renderPass,
+												const vk::PipelineVertexInputStateCreateInfo& vertexInputState)
 {
 	const vk::UniqueShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
 	const vk::UniqueShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
@@ -936,7 +966,7 @@ vk::UniquePipeline createSimpleGraphicsPipeline(const vk::Device device,
 		createInfo.module = fragShaderModule.get();
 		return createInfo;
 	}();
-	const array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	const array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {vertShaderStageInfo, fragShaderStageInfo};
 
 	const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState = [] {
 		vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -955,7 +985,7 @@ vk::UniquePipeline createSimpleGraphicsPipeline(const vk::Device device,
 		return viewportState;
 	}();
 
-	const array<vk::DynamicState, 2> dynamicStateEnables {
+	const array<vk::DynamicState, 2> dynamicStateEnables{
 		vk::DynamicState::eViewport,
 		vk::DynamicState::eScissor,
 	};
@@ -1033,16 +1063,17 @@ vk::UniquePipeline createSimpleGraphicsPipeline(const vk::Device device,
 }
 
 vector<vk::UniqueFramebuffer> createFramebuffers(const vk::Device device,
-    const vector<vk::UniqueImageView>& imageViews,
-    const vk::RenderPass renderPass,
-    const vk::Extent2D extent)
+												 const vector<vk::UniqueImageView>& imageViews,
+												 const vk::RenderPass renderPass,
+												 const vk::Extent2D extent)
 {
-	vector<vk::UniqueFramebuffer> framebuffers {};
+	vector<vk::UniqueFramebuffer> framebuffers{};
 	framebuffers.reserve(imageViews.size());
-	for (auto const& view : imageViews) {
-		const array<vk::ImageView, 1> views = { view.get() };
+	for (auto const& view : imageViews)
+	{
+		const array<vk::ImageView, 1> views = {view.get()};
 
-		vk::FramebufferCreateInfo framebufferInfo {};
+		vk::FramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.flags = {};
 		framebufferInfo.renderPass = renderPass;
 		framebufferInfo.attachmentCount = views.size();
@@ -1058,47 +1089,48 @@ vector<vk::UniqueFramebuffer> createFramebuffers(const vk::Device device,
 
 template <typename Vert, typename = enable_if_t<is_trivially_copyable_v<Vert>>>
 BufferAndMemory createVertexBuffer(
-    const vk::PhysicalDevice physicalDevice,
-    const vk::Device device,
-    const vk::CommandPool commandPool,
-    const uint32_t queueFamilyIndex,
-    const vk::Queue queue,
-    const Span<const Vert> verts)
+	const vk::PhysicalDevice physicalDevice,
+	const vk::Device device,
+	const vk::CommandPool commandPool,
+	const uint32_t queueFamilyIndex,
+	const vk::Queue queue,
+	const Span<const Vert> verts)
 {
 	const vk::DeviceSize bufferSize = sizeof(Vert) * verts.size();
 	auto staging = createBufferAndMemory(
-	    physicalDevice,
-	    device,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eTransferSrc,
-	    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-	    queueFamilyIndex);
+		physicalDevice,
+		device,
+		bufferSize,
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		queueFamilyIndex);
 
 	void* data;
-	const vk::DeviceSize offset { 0 };
+	const vk::DeviceSize offset{0};
 	const auto res = device.mapMemory(
-	    staging.deviceMemory.get(), offset, bufferSize, vk::MemoryMapFlagBits {}, &data);
-	if (res != vk::Result::eSuccess) {
+		staging.deviceMemory.get(), offset, bufferSize, vk::MemoryMapFlagBits{}, &data);
+	if (res != vk::Result::eSuccess)
+	{
 		throw "Failed to map vertex buffer";
 	}
 	memcpy(data, verts.data(), static_cast<size_t>(bufferSize));
 	device.unmapMemory(staging.deviceMemory.get());
 
 	auto bufAndMem = createBufferAndMemory(
-	    physicalDevice,
-	    device,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-	    vk::MemoryPropertyFlagBits::eDeviceLocal,
-	    queueFamilyIndex);
+		physicalDevice,
+		device,
+		bufferSize,
+		vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+		vk::MemoryPropertyFlagBits::eDeviceLocal,
+		queueFamilyIndex);
 
 	copyBuffer(
-	    device,
-	    commandPool,
-	    queue,
-	    staging.buffer.get(),
-	    bufAndMem.buffer.get(),
-	    bufferSize);
+		device,
+		commandPool,
+		queue,
+		staging.buffer.get(),
+		bufAndMem.buffer.get(),
+		bufferSize);
 	device.destroyBuffer(staging.buffer.release());
 	device.freeMemory(staging.deviceMemory.release());
 
@@ -1107,54 +1139,56 @@ BufferAndMemory createVertexBuffer(
 
 template <typename Index, typename = enable_if_t<is_arithmetic_v<Index>>>
 BufferAndMemory createIndexBuffer(
-    const vk::PhysicalDevice physicalDevice,
-    const vk::Device device,
-    const vk::CommandPool commandPool,
-    const uint32_t queueFamilyIndex,
-    const vk::Queue queue,
-    const Span<const Index> inds)
+	const vk::PhysicalDevice physicalDevice,
+	const vk::Device device,
+	const vk::CommandPool commandPool,
+	const uint32_t queueFamilyIndex,
+	const vk::Queue queue,
+	const Span<const Index> inds)
 {
 	const vk::DeviceSize bufferSize = sizeof(Index) * inds.size();
 	auto staging = createBufferAndMemory(
-	    physicalDevice,
-	    device,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eTransferSrc,
-	    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-	    queueFamilyIndex);
+		physicalDevice,
+		device,
+		bufferSize,
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		queueFamilyIndex);
 
 	void* data;
-	const vk::DeviceSize offset { 0 };
+	const vk::DeviceSize offset{0};
 	const auto res = device.mapMemory(
-	    staging.deviceMemory.get(), offset, bufferSize, vk::MemoryMapFlagBits {}, &data);
-	if (res != vk::Result::eSuccess) {
+		staging.deviceMemory.get(), offset, bufferSize, vk::MemoryMapFlagBits{}, &data);
+	if (res != vk::Result::eSuccess)
+	{
 		throw "Failed to map vertex buffer";
 	}
 	memcpy(data, inds.data(), static_cast<size_t>(bufferSize));
 	device.unmapMemory(staging.deviceMemory.get());
 
 	auto bufAndMem = createBufferAndMemory(
-	    physicalDevice,
-	    device,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
-	    vk::MemoryPropertyFlagBits::eDeviceLocal,
-	    queueFamilyIndex);
+		physicalDevice,
+		device,
+		bufferSize,
+		vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+		vk::MemoryPropertyFlagBits::eDeviceLocal,
+		queueFamilyIndex);
 
 	copyBuffer(
-	    device,
-	    commandPool,
-	    queue,
-	    staging.buffer.get(),
-	    bufAndMem.buffer.get(),
-	    bufferSize);
+		device,
+		commandPool,
+		queue,
+		staging.buffer.get(),
+		bufAndMem.buffer.get(),
+		bufferSize);
 
 	device.destroyBuffer(staging.buffer.release());
 	device.freeMemory(staging.deviceMemory.release());
-	return move(bufAndMem);
+	return std::move(bufAndMem);
 }
 
-struct SwapchainSupportDetails {
+struct SwapchainSupportDetails
+{
 	vk::SurfaceCapabilitiesKHR capabilities;
 	vector<vk::SurfaceFormatKHR> formats;
 	vector<vk::PresentModeKHR> presentModes;
@@ -1172,11 +1206,14 @@ SwapchainSupportDetails querySwapchainSupport(const vk::PhysicalDevice physicalD
 
 vk::SurfaceFormatKHR chooseSwapchainSurfaceFormat(const vector<vk::SurfaceFormatKHR>& availableFormats)
 {
-	for (const auto& availableFormat : availableFormats) {
+	for (const auto& availableFormat : availableFormats)
+	{
 		cout << "available format: " << to_string(availableFormat.format) << ", " << to_string(availableFormat.colorSpace) << '\n';
 	}
-	for (const auto& availableFormat : availableFormats) {
-		if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+	for (const auto& availableFormat : availableFormats)
+	{
+		if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+		{
 			cout << "Chosen format: " << to_string(availableFormat.format) << ", " << to_string(availableFormat.colorSpace) << '\n';
 			return availableFormat;
 		}
@@ -1189,8 +1226,10 @@ vk::SurfaceFormatKHR chooseSwapchainSurfaceFormat(const vector<vk::SurfaceFormat
 
 vk::PresentModeKHR chooseSwapchainPresentMode(const vector<vk::PresentModeKHR>& availablePresentModes)
 {
-	for (const auto& availablePresentMode : availablePresentModes) {
-		if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed) {
+	for (const auto& availablePresentMode : availablePresentModes)
+	{
+		if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
+		{
 			return availablePresentMode;
 		}
 	}
@@ -1200,18 +1239,21 @@ vk::PresentModeKHR chooseSwapchainPresentMode(const vector<vk::PresentModeKHR>& 
 
 vk::Extent2D chooseSwapchainExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const uint32_t width, const uint32_t height)
 {
-	if (capabilities.currentExtent.width != UINT32_MAX) {
+	if (capabilities.currentExtent.width != UINT32_MAX)
+	{
 		return capabilities.currentExtent;
-	} else {
+	}
+	else
+	{
 		vk::Extent2D actualExtent;
 		actualExtent.width = clamp(
-		    width,
-		    capabilities.minImageExtent.width,
-		    capabilities.maxImageExtent.width);
+			width,
+			capabilities.minImageExtent.width,
+			capabilities.maxImageExtent.width);
 		actualExtent.height = clamp(
-		    height,
-		    capabilities.minImageExtent.height,
-		    capabilities.maxImageExtent.height);
+			height,
+			capabilities.minImageExtent.height,
+			capabilities.maxImageExtent.height);
 		return actualExtent;
 	}
 }
@@ -1220,8 +1262,8 @@ vk::Extent2D chooseSwapchainExtent(const vk::SurfaceCapabilitiesKHR& capabilitie
 void VulkanResources::createInstance()
 {
 	cout << "Creating Vulkan instance\n"
-	     << flush;
-	vk::ApplicationInfo appInfo {};
+		 << flush;
+	vk::ApplicationInfo appInfo{};
 	appInfo.pApplicationName = appName;
 	appInfo.applicationVersion = MAKE_VERSION(0, 1, 0);
 	appInfo.pEngineName = "NoEngine";
@@ -1231,13 +1273,14 @@ void VulkanResources::createInstance()
 	m_enableDebugUtils = !disableDebugUtils && checkDebugUtilsSupport();
 	m_enableValidationLayers = !disableValidationLayers && checkValidationLayerSupport();
 
-	vector<const char*> enabledExtensions { requiredInstanceExtensions.begin(), requiredInstanceExtensions.end() };
-	if (m_enableDebugUtils) {
+	vector<const char*> enabledExtensions{requiredInstanceExtensions.begin(), requiredInstanceExtensions.end()};
+	if (m_enableDebugUtils)
+	{
 		enabledExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 	const auto enabledLayers = m_enableValidationLayers
-	    ? vector<const char*> { validationLayerName }
-	    : vector<const char*> {};
+								   ? vector<const char*>{validationLayerName}
+								   : vector<const char*>{};
 	const vk::InstanceCreateInfo createInfo = [&appInfo, &enabledExtensions, &enabledLayers] {
 		vk::InstanceCreateInfo createInfo;
 		createInfo.pApplicationInfo = &appInfo;
@@ -1256,19 +1299,17 @@ void VulkanResources::createInstance()
 void VulkanResources::setupDebugMessenger()
 {
 	cout << "Setting up Vulkan debug utils\n"
-	     << flush;
+		 << flush;
 
 	const vk::Instance instance = m_instance.get();
 	loadDebugMessengers(instance);
 	vk::DebugUtilsMessengerCreateInfoEXT createInfo = [] {
-		const vk::DebugUtilsMessageSeverityFlagsEXT severityFlags {
-			vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
-		};
-		const vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags {
-			vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
-		};
+		const vk::DebugUtilsMessageSeverityFlagsEXT severityFlags{
+			vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError};
+		const vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags{
+			vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation};
 
-		vk::DebugUtilsMessengerCreateInfoEXT createInfo {};
+		vk::DebugUtilsMessengerCreateInfoEXT createInfo{};
 		createInfo.messageSeverity = severityFlags;
 		createInfo.messageType = messageTypeFlags;
 		createInfo.pfnUserCallback = debugUtilsMessengerCallback;
@@ -1279,7 +1320,7 @@ void VulkanResources::setupDebugMessenger()
 
 void VulkanResources::createXlibSurface(XDisplay* xDisplay, XWindow window)
 {
-	vk::XlibSurfaceCreateInfoKHR createInfo {};
+	vk::XlibSurfaceCreateInfoKHR createInfo{};
 	createInfo.dpy = xDisplay;
 	createInfo.window = window;
 	m_surface = m_instance.get().createXlibSurfaceKHRUnique(createInfo);
@@ -1288,7 +1329,8 @@ void VulkanResources::createXlibSurface(XDisplay* xDisplay, XWindow window)
 void VulkanResources::pickPhysicalDevice()
 {
 	const vector<vk::PhysicalDevice> physicalDevices = m_instance->enumeratePhysicalDevices();
-	if (physicalDevices.empty()) {
+	if (physicalDevices.empty())
+	{
 		throw "Failed to find a suitable GPU!";
 	}
 	// When there are multiple physical devices available, one should inspect the list
@@ -1299,20 +1341,22 @@ void VulkanResources::pickPhysicalDevice()
 void VulkanResources::pickQueue()
 {
 	const optional<QueueFamily> queueFamily_ = findQueueFamilies(m_physicalDevice, m_surface.get());
-	if (!queueFamily_) {
+	if (!queueFamily_)
+	{
 		throw "Cannot find queue family with graphics and presentation capabilities";
 	}
 	m_queueFamily = queueFamily_.value();
 	cout << "Queue family index: " << m_queueFamily.index << '\n'
-	     << flush;
+		 << flush;
 }
 
 void VulkanResources::createLogicalDevice()
 {
-	vector<vk::DeviceQueueCreateInfo> queueCreateInfos {};
+	vector<vk::DeviceQueueCreateInfo> queueCreateInfos{};
 	{
-		const auto queuePriorities = array<float, 1> { 1.0f };
-		for (const auto queueFamily : array<QueueFamily, 1> { m_queueFamily }) {
+		const auto queuePriorities = array<float, 1>{1.0f};
+		for (const auto queueFamily : array<QueueFamily, 1>{m_queueFamily})
+		{
 			vk::DeviceQueueCreateInfo queueCreateInfo = [&queuePriorities, queueFamily] {
 				vk::DeviceQueueCreateInfo queueCreateInfo;
 				queueCreateInfo.queueCount = queuePriorities.size();
@@ -1324,9 +1368,9 @@ void VulkanResources::createLogicalDevice()
 		}
 	}
 
-	const vk::PhysicalDeviceFeatures deviceFeatures {};
-	const auto validationLayers = m_enableValidationLayers ? vector<const char*> { validationLayerName }
-	                                                       : vector<const char*> {};
+	const vk::PhysicalDeviceFeatures deviceFeatures{};
+	const auto validationLayers = m_enableValidationLayers ? vector<const char*>{validationLayerName}
+														   : vector<const char*>{};
 	const vk::DeviceCreateInfo createInfo = [&deviceFeatures, &queueCreateInfos, &validationLayers] {
 		vk::DeviceCreateInfo createInfo;
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
@@ -1347,32 +1391,34 @@ void VulkanResources::createLogicalDevice()
 ////////////////////////////////
 void VulkanResources::createRenderTextureImages(const uint32_t nImages, const uint32_t width, const uint32_t height)
 {
-	const int numLayers { 1 };
-	const vk::Format format { vk::Format::eR8G8B8A8Unorm };
-	const vk::ImageUsageFlags usage { vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled };
-	const vk::Extent2D extent { width, height };
+	const int numLayers{1};
+	const vk::Format format{vk::Format::eR8G8B8A8Unorm};
+	const vk::ImageUsageFlags usage{vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled};
+	const vk::Extent2D extent{width, height};
 	const vk::ImageTiling tiling = vk::ImageTiling::eOptimal;
 
 	m_renderTextureImageFormat = format;
 	m_renderTextureExtent = extent;
 	m_renderTextureImages.reserve(nImages);
 
-	for (auto i = 0U; i < nImages; ++i) {
+	for (auto i = 0U; i < nImages; ++i)
+	{
 		m_renderTextureImages.emplace_back(createTextureImage(m_device.get(), extent, numLayers, format, tiling, usage));
 	}
 }
 
 void VulkanResources::createRenderTextureDeviceMemories()
 {
-	const int numLayers { 1 };
-	const vk::Format format { m_renderTextureImageFormat };
-	const vk::ImageUsageFlags usage { vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled };
+	const int numLayers{1};
+	const vk::Format format{m_renderTextureImageFormat};
+	const vk::ImageUsageFlags usage{vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled};
 
 	const auto nImages = m_renderTextureImages.size();
 	const auto devMemProps = m_physicalDevice.getMemoryProperties();
 	const auto memProps = vk::MemoryPropertyFlagBits::eDeviceLocal;
 	m_renderTextureDeviceMemories.reserve(nImages);
-	for (const auto& image : m_renderTextureImages) {
+	for (const auto& image : m_renderTextureImages)
+	{
 		const auto memReqs = m_device->getImageMemoryRequirements(image.get());
 		m_renderTextureDeviceMemories.emplace_back(createTextureDeviceMemory(m_device.get(), image.get(), memReqs, devMemProps, memProps));
 	}
@@ -1380,13 +1426,14 @@ void VulkanResources::createRenderTextureDeviceMemories()
 
 void VulkanResources::createRenderTextureImageViews()
 {
-	const int numLayers { 1 };
-	const vk::Format format { m_renderTextureImageFormat };
-	const vk::ImageViewType viewType { vk::ImageViewType::e2D };
+	const int numLayers{1};
+	const vk::Format format{m_renderTextureImageFormat};
+	const vk::ImageViewType viewType{vk::ImageViewType::e2D};
 
 	const auto nImages = m_renderTextureImages.size();
 	m_renderTextureImageViews.reserve(nImages);
-	for (auto i = 0U; i < nImages; ++i) {
+	for (auto i = 0U; i < nImages; ++i)
+	{
 		const auto image = m_renderTextureImages[i].get();
 		const auto deviceMemory = m_renderTextureDeviceMemories[i].get();
 		const auto memReqs = m_device->getImageMemoryRequirements(image);
@@ -1403,16 +1450,16 @@ void VulkanResources::createRenderTextureRenderPass()
 
 void VulkanResources::createRenderTextureDescriptorSetLayout()
 {
-	const uint32_t uboCount { 1 };
-	const uint32_t samplerCount { 0 };
+	const uint32_t uboCount{1};
+	const uint32_t samplerCount{0};
 	m_renderTextureDescriptorSetLayout = createDescriptorSetLayout(m_device.get(), uboCount, samplerCount);
 }
 
 void VulkanResources::createRenderTextureGraphicsPipeline()
 {
-	const vector<unsigned char> vertShaderCode = { begin(vlk_shaderDemoSceneVert), end(vlk_shaderDemoSceneVert) };
-	const vector<unsigned char> fragShaderCode = { begin(vlk_shaderDemoSceneFrag), end(vlk_shaderDemoSceneFrag) };
-	const vector<vk::DescriptorSetLayout> setLayouts = { m_renderTextureDescriptorSetLayout.get() };
+	const vector<unsigned char> vertShaderCode = {begin(vlk_shaderDemoSceneVert), end(vlk_shaderDemoSceneVert)};
+	const vector<unsigned char> fragShaderCode = {begin(vlk_shaderDemoSceneFrag), end(vlk_shaderDemoSceneFrag)};
+	const vector<vk::DescriptorSetLayout> setLayouts = {m_renderTextureDescriptorSetLayout.get()};
 	m_renderTexturePipelineLayout = createSimpleGraphicsPipelineLayout(m_device.get(), setLayouts);
 
 	const auto bindingDescription = RenderTextureVertex::getBindingDescription();
@@ -1427,13 +1474,13 @@ void VulkanResources::createRenderTextureGraphicsPipeline()
 		return vertexInputInfo;
 	}();
 	m_renderTextureGraphicsPipeline = createSimpleGraphicsPipeline(
-	    m_device.get(),
-	    vertShaderCode,
-	    fragShaderCode,
-	    m_renderTextureExtent,
-	    m_renderTexturePipelineLayout.get(),
-	    m_renderTextureRenderPass.get(),
-	    vertexInputState);
+		m_device.get(),
+		vertShaderCode,
+		fragShaderCode,
+		m_renderTextureExtent,
+		m_renderTexturePipelineLayout.get(),
+		m_renderTextureRenderPass.get(),
+		vertexInputState);
 }
 
 void VulkanResources::createRenderTextureFramebuffers()
@@ -1445,26 +1492,26 @@ void VulkanResources::createRenderTextureVertexBuffer(const Span<const RenderTex
 {
 	const vk::Device device = m_device.get();
 	auto bufAndMem = createVertexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, verts);
-	m_renderTextureVertexBuffer = move(bufAndMem.buffer);
-	m_renderTextureVertexBufferMemory = move(bufAndMem.deviceMemory);
+	m_renderTextureVertexBuffer = std::move(bufAndMem.buffer);
+	m_renderTextureVertexBufferMemory = std::move(bufAndMem.deviceMemory);
 }
 
 void VulkanResources::createRenderTextureIndexBuffer(const Span<const RenderTextureVertex::IndexType> inds)
 {
 	const vk::Device device = m_device.get();
 	auto bufAndMem = createIndexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, inds);
-	m_renderTextureIndexBuffer = move(bufAndMem.buffer);
-	m_renderTextureIndexBufferMemory = move(bufAndMem.deviceMemory);
+	m_renderTextureIndexBuffer = std::move(bufAndMem.buffer);
+	m_renderTextureIndexBufferMemory = std::move(bufAndMem.deviceMemory);
 }
 
 void VulkanResources::createRenderTextureDescriptorPool()
 {
 	const uint32_t nImages = 2U * m_renderTextureImages.size();
-	array<vk::DescriptorPoolSize, 1> poolSizes {};
+	array<vk::DescriptorPoolSize, 1> poolSizes{};
 	poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
 	poolSizes[0].descriptorCount = nImages;
 
-	vk::DescriptorPoolCreateInfo poolInfo {};
+	vk::DescriptorPoolCreateInfo poolInfo{};
 	poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
@@ -1477,14 +1524,15 @@ void VulkanResources::createRenderTextureDescriptorSets()
 {
 	const uint32_t nImages2 = 2U * m_renderTextureImages.size(); // left/right
 	const vector<vk::DescriptorSetLayout> layouts(nImages2, m_renderTextureDescriptorSetLayout.get());
-	vk::DescriptorSetAllocateInfo allocInfo {};
+	vk::DescriptorSetAllocateInfo allocInfo{};
 	allocInfo.descriptorPool = m_renderTextureDescriptorPool.get();
 	allocInfo.descriptorSetCount = static_cast<uint32_t>(nImages2);
 	allocInfo.pSetLayouts = layouts.data();
 
 	m_renderTextureDescriptorSets = m_device->allocateDescriptorSetsUnique(allocInfo);
 
-	for (auto i = 0u; i < nImages2; ++i) {
+	for (auto i = 0u; i < nImages2; ++i)
+	{
 		array<vk::DescriptorBufferInfo, 1> bufInfo;
 		bufInfo[0].buffer = m_renderTextureUniformBuffers[i].get();
 		bufInfo[0].offset = 0;
@@ -1510,34 +1558,34 @@ void VulkanResources::createSwapchain(const uint32_t width, const uint32_t heigh
 	const vk::Extent2D extent = chooseSwapchainExtent(swapchainSupport.capabilities, width, height);
 
 	const vk::SwapchainCreateInfoKHR createInfo =
-	    [this, &swapchainSupport, &surfaceFormat, &presentMode, &extent] {
-		    uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
-		    {
-			    if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount) {
-				    imageCount = swapchainSupport.capabilities.maxImageCount;
-			    }
-		    }
-		    vk::SwapchainCreateInfoKHR createInfo {};
-		    createInfo.surface = m_surface.get();
-		    createInfo.minImageCount = imageCount;
-		    createInfo.imageFormat = surfaceFormat.format;
-		    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-		    createInfo.imageExtent = extent;
-		    createInfo.imageArrayLayers = 1;
-		    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
-		    createInfo.imageSharingMode = vk::SharingMode::eExclusive;
-		    createInfo.preTransform = swapchainSupport.capabilities.currentTransform;
-		    createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-		    createInfo.presentMode = presentMode;
-		    createInfo.clipped = VK_TRUE;
-		    createInfo.oldSwapchain = nullptr;
-		    const auto queueFamilyIndices = array<uint32_t, 1> {
-			    m_queueFamily.index
-		    };
-		    createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-		    createInfo.queueFamilyIndexCount = queueFamilyIndices.size();
-		    return createInfo;
-	    }();
+		[this, &swapchainSupport, &surfaceFormat, &presentMode, &extent] {
+			uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
+			{
+				if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount)
+				{
+					imageCount = swapchainSupport.capabilities.maxImageCount;
+				}
+			}
+			vk::SwapchainCreateInfoKHR createInfo{};
+			createInfo.surface = m_surface.get();
+			createInfo.minImageCount = imageCount;
+			createInfo.imageFormat = surfaceFormat.format;
+			createInfo.imageColorSpace = surfaceFormat.colorSpace;
+			createInfo.imageExtent = extent;
+			createInfo.imageArrayLayers = 1;
+			createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+			createInfo.imageSharingMode = vk::SharingMode::eExclusive;
+			createInfo.preTransform = swapchainSupport.capabilities.currentTransform;
+			createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+			createInfo.presentMode = presentMode;
+			createInfo.clipped = VK_TRUE;
+			createInfo.oldSwapchain = nullptr;
+			const auto queueFamilyIndices = array<uint32_t, 1>{
+				m_queueFamily.index};
+			createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+			createInfo.queueFamilyIndexCount = queueFamilyIndices.size();
+			return createInfo;
+		}();
 
 	m_swapchainImageFormat = surfaceFormat.format;
 	m_swapchainExtent = extent;
@@ -1553,14 +1601,15 @@ void VulkanResources::createSwapchainImageViews()
 {
 	m_swapchainImageViews.resize(m_swapchainImages.size());
 
-	const vk::ComponentMapping components {
+	const vk::ComponentMapping components{
 		vk::ComponentSwizzle::eIdentity,
 		vk::ComponentSwizzle::eIdentity,
 		vk::ComponentSwizzle::eIdentity,
 		vk::ComponentSwizzle::eIdentity,
 	};
-	const vk::ImageSubresourceRange subresourceRange { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
-	for (size_t i = 0; i < m_swapchainImages.size(); i++) {
+	const vk::ImageSubresourceRange subresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+	for (size_t i = 0; i < m_swapchainImages.size(); i++)
+	{
 		const vk::ImageViewCreateInfo createInfo = [this, i, &components, &subresourceRange] {
 			vk::ImageViewCreateInfo createInfo;
 			createInfo.image = m_swapchainImages[i];
@@ -1581,16 +1630,16 @@ void VulkanResources::createSwapchainRenderPass()
 
 void VulkanResources::createSwapchainDescriptorSetLayout()
 {
-	const uint32_t uboCount { 0 };
-	const uint32_t samplerCount { 1 };
+	const uint32_t uboCount{0};
+	const uint32_t samplerCount{1};
 	m_swapchainDescriptorSetLayout = createDescriptorSetLayout(m_device.get(), uboCount, samplerCount);
 }
 
 void VulkanResources::createSwapchainGraphicsPipeline()
 {
-	const vector<unsigned char> vertShaderCode = { begin(vlk_shaderTextureCopyVert), end(vlk_shaderTextureCopyVert) };
-	const vector<unsigned char> fragShaderCode = { begin(vlk_shaderTextureCopyFrag), end(vlk_shaderTextureCopyFrag) };
-	const vector<vk::DescriptorSetLayout> setLayouts = { m_swapchainDescriptorSetLayout.get() };
+	const vector<unsigned char> vertShaderCode = {begin(vlk_shaderTextureCopyVert), end(vlk_shaderTextureCopyVert)};
+	const vector<unsigned char> fragShaderCode = {begin(vlk_shaderTextureCopyFrag), end(vlk_shaderTextureCopyFrag)};
+	const vector<vk::DescriptorSetLayout> setLayouts = {m_swapchainDescriptorSetLayout.get()};
 	m_swapchainPipelineLayout = createSimpleGraphicsPipelineLayout(m_device.get(), setLayouts);
 
 	const auto bindingDescription = SwapchainVertex::getBindingDescription();
@@ -1606,13 +1655,13 @@ void VulkanResources::createSwapchainGraphicsPipeline()
 	}();
 
 	m_swapchainGraphicsPipeline = createSimpleGraphicsPipeline(
-	    m_device.get(),
-	    vertShaderCode,
-	    fragShaderCode,
-	    m_swapchainExtent,
-	    m_swapchainPipelineLayout.get(),
-	    m_swapchainRenderPass.get(),
-	    vertexInputState);
+		m_device.get(),
+		vertShaderCode,
+		fragShaderCode,
+		m_swapchainExtent,
+		m_swapchainPipelineLayout.get(),
+		m_swapchainRenderPass.get(),
+		vertexInputState);
 }
 
 void VulkanResources::createSwapchainFramebuffers()
@@ -1624,16 +1673,16 @@ void VulkanResources::createSwapchainVertexBuffer(const Span<const SwapchainVert
 {
 	const vk::Device device = m_device.get();
 	auto bufAndMem = createVertexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, verts);
-	m_swapchainVertexBuffer = move(bufAndMem.buffer);
-	m_swapchainVertexBufferMemory = move(bufAndMem.deviceMemory);
+	m_swapchainVertexBuffer = std::move(bufAndMem.buffer);
+	m_swapchainVertexBufferMemory = std::move(bufAndMem.deviceMemory);
 }
 
 void VulkanResources::createSwapchainIndexBuffer(const Span<const SwapchainVertex::IndexType> inds)
 {
 	const vk::Device device = m_device.get();
 	auto bufAndMem = createIndexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, inds);
-	m_swapchainIndexBuffer = move(bufAndMem.buffer);
-	m_swapchainIndexBufferMemory = move(bufAndMem.deviceMemory);
+	m_swapchainIndexBuffer = std::move(bufAndMem.buffer);
+	m_swapchainIndexBufferMemory = std::move(bufAndMem.deviceMemory);
 }
 
 void VulkanResources::createSwapchainTextureSampler()
@@ -1648,15 +1697,15 @@ void VulkanResources::createSwapchainUniformBuffers()
 	const vk::DeviceSize bufferSize = sizeof(SwapchainUbo);
 
 	auto res = createBuffersAndMemories(
-	    m_physicalDevice,
-	    m_device.get(),
-	    nImages,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eUniformBuffer,
-	    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-	    m_queueFamily.index);
-	m_swapchainUniformBuffers = move(res.buffers);
-	m_swapchainUniformBufferMemories = move(res.deviceMemories);
+		m_physicalDevice,
+		m_device.get(),
+		nImages,
+		bufferSize,
+		vk::BufferUsageFlagBits::eUniformBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		m_queueFamily.index);
+	m_swapchainUniformBuffers = std::move(res.buffers);
+	m_swapchainUniformBufferMemories = std::move(res.deviceMemories);
 }
 
 void VulkanResources::createRenderTextureUniformBuffers()
@@ -1665,25 +1714,25 @@ void VulkanResources::createRenderTextureUniformBuffers()
 	const vk::DeviceSize bufferSize = sizeof(RenderTextureUbo);
 
 	auto res = createBuffersAndMemories(
-	    m_physicalDevice,
-	    m_device.get(),
-	    nImages2,
-	    bufferSize,
-	    vk::BufferUsageFlagBits::eUniformBuffer,
-	    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-	    m_queueFamily.index);
-	m_renderTextureUniformBuffers = move(res.buffers);
-	m_renderTextureUniformBufferMemories = move(res.deviceMemories);
+		m_physicalDevice,
+		m_device.get(),
+		nImages2,
+		bufferSize,
+		vk::BufferUsageFlagBits::eUniformBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		m_queueFamily.index);
+	m_renderTextureUniformBuffers = std::move(res.buffers);
+	m_renderTextureUniformBufferMemories = std::move(res.deviceMemories);
 }
 
 void VulkanResources::createSwapchainDescriptorPool()
 {
 	const uint32_t nImages = m_swapchainImages.size();
-	array<vk::DescriptorPoolSize, 1> poolSizes {};
+	array<vk::DescriptorPoolSize, 1> poolSizes{};
 	poolSizes[0].type = vk::DescriptorType::eCombinedImageSampler;
 	poolSizes[0].descriptorCount = static_cast<uint32_t>(nImages);
 
-	vk::DescriptorPoolCreateInfo poolInfo {};
+	vk::DescriptorPoolCreateInfo poolInfo{};
 	poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
@@ -1697,17 +1746,18 @@ void VulkanResources::createSwapchainDescriptorSets()
 {
 	const uint32_t nImages = m_swapchainImages.size();
 	const vector<vk::DescriptorSetLayout> layouts(nImages, m_swapchainDescriptorSetLayout.get());
-	vk::DescriptorSetAllocateInfo allocInfo {};
+	vk::DescriptorSetAllocateInfo allocInfo{};
 	allocInfo.descriptorPool = m_swapchainDescriptorPool.get();
 	allocInfo.descriptorSetCount = static_cast<uint32_t>(nImages);
 	allocInfo.pSetLayouts = layouts.data();
 
 	m_swapchainDescriptorSets = m_device->allocateDescriptorSetsUnique(allocInfo);
 
-	for (auto i = 0u; i < nImages; ++i) {
+	for (auto i = 0u; i < nImages; ++i)
+	{
 		vector<vk::WriteDescriptorSet> descriptorWrites(1);
 
-		vk::DescriptorImageInfo imgInfo {};
+		vk::DescriptorImageInfo imgInfo{};
 		imgInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 		imgInfo.imageView = m_renderTextureImageViews[i].get(); // texture from render texture pass
 		imgInfo.sampler = m_swapchainTextureSampler.get();
@@ -1726,7 +1776,7 @@ void VulkanResources::createSwapchainDescriptorSets()
 ////////////////////////////////
 void VulkanResources::createCommandPool()
 {
-	vk::CommandPoolCreateInfo poolInfo {};
+	vk::CommandPoolCreateInfo poolInfo{};
 	poolInfo.flags = {};
 	poolInfo.queueFamilyIndex = m_queueFamily.index;
 	m_commandPool = m_device->createCommandPoolUnique(poolInfo);
@@ -1734,7 +1784,7 @@ void VulkanResources::createCommandPool()
 
 void VulkanResources::createCommandBuffers(const uint32_t nImages)
 {
-	vk::CommandBufferAllocateInfo allocInfo {};
+	vk::CommandBufferAllocateInfo allocInfo{};
 	allocInfo.commandPool = m_commandPool.get();
 	allocInfo.level = vk::CommandBufferLevel::ePrimary;
 	allocInfo.commandBufferCount = nImages;
@@ -1747,9 +1797,10 @@ void VulkanResources::createSyncObjects(const uint32_t nImages, const uint32_t n
 	m_imageAvailableSemaphores.reserve(nMaxFramesInFlight);
 	m_renderFinishedSemaphores.reserve(nMaxFramesInFlight);
 	m_inFlightFences.reserve(nMaxFramesInFlight);
-	for (size_t i = 0; i < nMaxFramesInFlight; ++i) {
-		m_imageAvailableSemaphores.emplace_back(m_device->createSemaphoreUnique(vk::SemaphoreCreateInfo {}));
-		m_renderFinishedSemaphores.emplace_back(m_device->createSemaphoreUnique(vk::SemaphoreCreateInfo {}));
+	for (size_t i = 0; i < nMaxFramesInFlight; ++i)
+	{
+		m_imageAvailableSemaphores.emplace_back(m_device->createSemaphoreUnique(vk::SemaphoreCreateInfo{}));
+		m_renderFinishedSemaphores.emplace_back(m_device->createSemaphoreUnique(vk::SemaphoreCreateInfo{}));
 		vk::FenceCreateInfo fenceCreateInfo;
 		fenceCreateInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 		m_inFlightFences.emplace_back(m_device->createFenceUnique(fenceCreateInfo));
@@ -1759,10 +1810,11 @@ void VulkanResources::createSyncObjects(const uint32_t nImages, const uint32_t n
 
 	m_waitAllFences = [this, device = m_device.get()] {
 		vector<vk::Fence> fences;
-		for (const auto& fence : m_inFlightFences) {
+		for (const auto& fence : m_inFlightFences)
+		{
 			fences.emplace_back(fence.get());
 		}
-		return VulkanWaitAllFences { device, move(fences) };
+		return VulkanWaitAllFences{device, std::move(fences)};
 	}();
 }
 
@@ -1778,7 +1830,8 @@ void VulkanResources::cleanupSwapchain()
 	m_swapchainImages.clear();
 	m_swapchain.reset();
 
-	for (auto i = 0u; i < m_swapchainImages.size(); ++i) {
+	for (auto i = 0u; i < m_swapchainImages.size(); ++i)
+	{
 		device.destroyBuffer(m_swapchainUniformBuffers[i].release());
 		device.freeMemory(m_swapchainUniformBufferMemories[i].release());
 	}
@@ -1793,7 +1846,7 @@ void VulkanResources::recreateSwapchain(NativeWindow& nativeWindow)
 {
 	const auto windowSize = nativeWindow.windowSize();
 	cout << "Next window size: " << windowSize.width << "x" << windowSize.height << '\n'
-	     << flush;
+		 << flush;
 
 	m_device->waitIdle();
 
@@ -1811,18 +1864,19 @@ void VulkanResources::recreateSwapchain(NativeWindow& nativeWindow)
 
 	const uint32_t nImages = m_swapchainImages.size();
 	createCommandBuffers(nImages);
-	recordCommandBuffers(Span<const RenderTextureVertex> { levelModelVerts }, Span<const SwapchainVertex::IndexType> { g_indices2 });
+	recordCommandBuffers(Span<const RenderTextureVertex>{levelModelVerts}, Span<const SwapchainVertex::IndexType>{g_indices2});
 }
 
 void VulkanResources::updateRenderTextureUniformBuffer(const uint32_t index, const RenderTextureUbo& ubo)
 {
 	void* data;
-	const vk::Device device { m_device.get() };
-	const vk::DeviceSize offset { 0 };
-	const vk::DeviceSize size { sizeof(ubo) };
+	const vk::Device device{m_device.get()};
+	const vk::DeviceSize offset{0};
+	const vk::DeviceSize size{sizeof(ubo)};
 	const auto ret = device.mapMemory(
-	    m_renderTextureUniformBufferMemories[index].get(), offset, size, vk::MemoryMapFlags {}, &data);
-	if (ret != vk::Result::eSuccess) {
+		m_renderTextureUniformBufferMemories[index].get(), offset, size, vk::MemoryMapFlags{}, &data);
+	if (ret != vk::Result::eSuccess)
+	{
 		throw "Map uniform buffer";
 	}
 	memcpy(data, &ubo, sizeof(ubo));
@@ -1836,9 +1890,10 @@ void VulkanResources::updateSwapchainUniformBuffer()
 ////////////////////////////////
 void VulkanResources::recordCommandBuffers(const Span<const RenderTextureVertex> sceneVerts, const Span<const SwapchainVertex::IndexType> quadInds)
 {
-	for (size_t i = 0; i < m_commandBuffers.size(); ++i) {
+	for (size_t i = 0; i < m_commandBuffers.size(); ++i)
+	{
 		const vk::CommandBuffer commandBuffer = m_commandBuffers[i].get();
-		vk::CommandBufferBeginInfo beginInfo {};
+		vk::CommandBufferBeginInfo beginInfo{};
 		beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
 		commandBuffer.begin(beginInfo);
 
@@ -1847,24 +1902,25 @@ void VulkanResources::recordCommandBuffers(const Span<const RenderTextureVertex>
 			const uint32_t halfWidth = m_renderTextureExtent.width / 2;
 			const uint32_t height = m_renderTextureExtent.height;
 
-			const vk::ClearColorValue clearColorValue { array<float, 4> { 0.3F, 0.3F, 0.8F, 0.3F } };
-			const vk::ClearValue clearColor { clearColorValue };
+			const vk::ClearColorValue clearColorValue{array<float, 4>{0.3F, 0.3F, 0.8F, 0.3F}};
+			const vk::ClearValue clearColor{clearColorValue};
 
 			vk::RenderPassBeginInfo renderPassInfo;
 			renderPassInfo.renderPass = m_renderTextureRenderPass.get();
 			renderPassInfo.framebuffer = m_renderTextureFramebuffers[i].get();
-			renderPassInfo.renderArea.offset = vk::Offset2D { 0, 0 };
+			renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
 			renderPassInfo.renderArea.extent = m_renderTextureExtent;
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 			commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 			// For each left/right eyes
-			for (int32_t j = 0; j < 2; ++j) {
-				const vk::Viewport currentViewport { static_cast<float>(halfWidth * j), 0, static_cast<float>(halfWidth), static_cast<float>(height), 0.0F, 1.0F };
-				const vk::Rect2D currentScissor { { static_cast<int32_t>(halfWidth * j), 0 }, { halfWidth, height } };
+			for (int32_t j = 0; j < 2; ++j)
+			{
+				const vk::Viewport currentViewport{static_cast<float>(halfWidth * j), 0, static_cast<float>(halfWidth), static_cast<float>(height), 0.0F, 1.0F};
+				const vk::Rect2D currentScissor{{static_cast<int32_t>(halfWidth * j), 0}, {halfWidth, height}};
 
-				const array<vk::Buffer, 1> vertexBuffers = { m_renderTextureVertexBuffer.get() };
-				vk::DeviceSize offsets[] = { 0 };
+				const array<vk::Buffer, 1> vertexBuffers = {m_renderTextureVertexBuffer.get()};
+				vk::DeviceSize offsets[] = {0};
 
 				commandBuffer.setViewport(0, currentViewport);
 				commandBuffer.setScissor(0, currentScissor);
@@ -1878,22 +1934,22 @@ void VulkanResources::recordCommandBuffers(const Span<const RenderTextureVertex>
 
 		// render to debug screen
 		{
-			const vk::ClearColorValue clearColorValue { array<float, 4> { 0.0f, 0.0f, 1.0f, 1.0f } };
-			const vk::ClearValue clearColor { clearColorValue };
+			const vk::ClearColorValue clearColorValue{array<float, 4>{0.0f, 0.0f, 1.0f, 1.0f}};
+			const vk::ClearValue clearColor{clearColorValue};
 			vk::RenderPassBeginInfo renderPassInfo;
 			renderPassInfo.renderPass = m_swapchainRenderPass.get();
 			renderPassInfo.framebuffer = m_swapchainFramebuffers[i].get();
-			renderPassInfo.renderArea.offset = vk::Offset2D { 0, 0 };
+			renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
 			renderPassInfo.renderArea.extent = m_swapchainExtent;
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 
-			const vk::Viewport currentViewport { 0, 0, static_cast<float>(m_swapchainExtent.width), static_cast<float>(m_swapchainExtent.height), 0.0F, 1.0F };
-			const vk::Rect2D currentScissor { { 0, 0 }, { m_swapchainExtent.width, m_swapchainExtent.height } };
+			const vk::Viewport currentViewport{0, 0, static_cast<float>(m_swapchainExtent.width), static_cast<float>(m_swapchainExtent.height), 0.0F, 1.0F};
+			const vk::Rect2D currentScissor{{0, 0}, {m_swapchainExtent.width, m_swapchainExtent.height}};
 
-			const array<vk::Buffer, 1> vertexBuffers = { m_swapchainVertexBuffer.get() };
+			const array<vk::Buffer, 1> vertexBuffers = {m_swapchainVertexBuffer.get()};
 			const vk::Buffer indexBuffer = m_swapchainIndexBuffer.get();
-			vk::DeviceSize offsets[] = { 0 };
+			vk::DeviceSize offsets[] = {0};
 
 			commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 			commandBuffer.setViewport(0, currentViewport);
@@ -1913,16 +1969,19 @@ void VulkanResources::recordCommandBuffers(const Span<const RenderTextureVertex>
 uint32_t VulkanResources::drawFrame(NativeWindow& nativeWindow, const RenderTextureUboLR& ubo)
 {
 	const auto currentFrame = m_currentFrame;
-	if (const auto res = m_device->waitForFences(m_inFlightFences[currentFrame].get(), true, UINT64_MAX); res != vk::Result::eSuccess) {
+	if (const auto res = m_device->waitForFences(m_inFlightFences[currentFrame].get(), true, UINT64_MAX); res != vk::Result::eSuccess)
+	{
 		throw "Failed to wait for fences";
 	}
 
 	vk::ResultValue<uint32_t> result = m_device->acquireNextImageKHR(
-	    m_swapchain.get(), UINT64_MAX, m_imageAvailableSemaphores[currentFrame].get(), {});
-	if (result.result == vk::Result::eErrorOutOfDateKHR) {
+		m_swapchain.get(), UINT64_MAX, m_imageAvailableSemaphores[currentFrame].get(), {});
+	if (result.result == vk::Result::eErrorOutOfDateKHR)
+	{
 		recreateSwapchain(nativeWindow);
 	}
-	if (result.result != vk::Result::eSuccess && result.result != vk::Result::eSuboptimalKHR) {
+	if (result.result != vk::Result::eSuccess && result.result != vk::Result::eSuboptimalKHR)
+	{
 		throw "Failed to acquire next image!";
 	}
 
@@ -1930,15 +1989,17 @@ uint32_t VulkanResources::drawFrame(NativeWindow& nativeWindow, const RenderText
 	updateRenderTextureUniformBuffer(2U * imageIndex + 0U, ubo.uboL); // left
 	updateRenderTextureUniformBuffer(2U * imageIndex + 1U, ubo.uboR); // right
 
-	if (m_imageInUseFences[imageIndex] != vk::Fence { nullptr }) {
+	if (m_imageInUseFences[imageIndex] != vk::Fence{nullptr})
+	{
 		const auto res = m_device->waitForFences(m_imageInUseFences[imageIndex], true, UINT64_MAX);
-		if (res != vk::Result::eSuccess) {
+		if (res != vk::Result::eSuccess)
+		{
 			throw "Failed to wait for fences";
 		}
 	}
 	m_imageInUseFences[imageIndex] = m_inFlightFences[currentFrame].get();
 
-	vk::PipelineStageFlags waitStages { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+	vk::PipelineStageFlags waitStages{vk::PipelineStageFlagBits::eColorAttachmentOutput};
 
 	vk::SubmitInfo submitInfo;
 	submitInfo.waitSemaphoreCount = 1;
@@ -1959,19 +2020,26 @@ uint32_t VulkanResources::drawFrame(NativeWindow& nativeWindow, const RenderText
 	presentInfo.pSwapchains = &m_swapchain.get();
 	presentInfo.pImageIndices = &imageIndex;
 
-	bool outOfDate { m_swapchainFramebufferResized ? true : false };
-	try {
+	bool outOfDate{m_swapchainFramebufferResized ? true : false};
+	try
+	{
 		const auto res2 = m_queue.presentKHR(presentInfo);
-		if (res2 == vk::Result::eErrorOutOfDateKHR || res2 == vk::Result::eSuboptimalKHR) {
+		if (res2 == vk::Result::eErrorOutOfDateKHR || res2 == vk::Result::eSuboptimalKHR)
+		{
 			outOfDate = true;
-		} else if (res2 != vk::Result::eSuccess) {
+		}
+		else if (res2 != vk::Result::eSuccess)
+		{
 			throw "Failed to present swap chain image";
 		}
-	} catch (...) {
+	}
+	catch (...)
+	{
 		// presentKHR can throw as well..
 		outOfDate = true;
 	}
-	if (outOfDate) {
+	if (outOfDate)
+	{
 		cerr << "Recreating swapchain\n";
 		m_swapchainFramebufferResized = false;
 		recreateSwapchain(nativeWindow);
@@ -1981,7 +2049,8 @@ uint32_t VulkanResources::drawFrame(NativeWindow& nativeWindow, const RenderText
 	return imageIndex;
 }
 
-class VulkanExample {
+class VulkanExample
+{
 public:
 	VulkanExample() = default;
 	~VulkanExample() noexcept = default;
@@ -2001,7 +2070,7 @@ public:
 
 	const Fove::VulkanTexture texture(const uint32_t index) const
 	{
-		Fove::VulkanTexture tex {
+		Fove::VulkanTexture tex{
 			textureContext(),
 			textureResources(index),
 			m_vulkan.m_renderTextureExtent.width,
@@ -2024,7 +2093,7 @@ private:
 
 	Fove::VulkanContext textureContext() const
 	{
-		Fove::VulkanContext context {
+		Fove::VulkanContext context{
 			instance(),
 			physicalDevice(),
 			device(),
@@ -2040,7 +2109,7 @@ private:
 
 	const Fove::VulkanTextureResources textureResources(const uint32_t index) const
 	{
-		Fove::VulkanTextureResources resources {
+		Fove::VulkanTextureResources resources{
 			m_vulkan.m_renderTextureDeviceMemories[index].get(),
 			m_vulkan.m_renderTextureImages[index].get(),
 			m_vulkan.m_renderTextureImageViews[index].get(),
@@ -2049,8 +2118,8 @@ private:
 	};
 
 private:
-	NativeWindow* m_nativeWindow { nullptr };
-	VulkanResources m_vulkan {};
+	NativeWindow* m_nativeWindow{nullptr};
+	VulkanResources m_vulkan{};
 };
 
 // Need to setup your own Vulkan context, apart from the one that Fove SDK uses.
@@ -2083,15 +2152,15 @@ void VulkanExample::initVulkan(NativeWindow& nativeWindow)
 	m_vulkan.createCommandPool();
 
 	cout << "Vulkan:\n"
-	     << "- Instance: " << m_vulkan.m_instance.get() << '\n'
-	     << "- Physical device: " << m_vulkan.m_physicalDevice << '\n'
-	     << "- Logical device: " << m_vulkan.m_device.get() << '\n'
-	     << "- Queue family index: " << m_vulkan.m_queueFamily.index << '\n'
-	     << "- Queue: " << m_vulkan.m_queue << '\n'
-	     << "- Swapchain:" << m_vulkan.m_swapchain.get() << '\n'
-	     << "- Command pool:" << m_vulkan.m_commandPool.get() << '\n'
-	     << '\n'
-	     << flush;
+		 << "- Instance: " << m_vulkan.m_instance.get() << '\n'
+		 << "- Physical device: " << m_vulkan.m_physicalDevice << '\n'
+		 << "- Logical device: " << m_vulkan.m_device.get() << '\n'
+		 << "- Queue family index: " << m_vulkan.m_queueFamily.index << '\n'
+		 << "- Queue: " << m_vulkan.m_queue << '\n'
+		 << "- Swapchain:" << m_vulkan.m_swapchain.get() << '\n'
+		 << "- Command pool:" << m_vulkan.m_commandPool.get() << '\n'
+		 << '\n'
+		 << flush;
 }
 
 void VulkanExample::initRenderTexturePipeline(const uint32_t nImages, const uint32_t width, const uint32_t height, const Span<const RenderTextureVertex> verts)
@@ -2128,7 +2197,7 @@ void VulkanExample::initCommandBuffers(const uint32_t nImages, const uint32_t nM
 	m_vulkan.createCommandBuffers(nImages);
 	m_vulkan.createSyncObjects(nImages, nMaxFramesInFlight);
 
-	m_vulkan.recordCommandBuffers(Span<const RenderTextureVertex> { levelModelVerts }, Span<const SwapchainVertex::IndexType> { g_indices2 });
+	m_vulkan.recordCommandBuffers(Span<const RenderTextureVertex>{levelModelVerts}, Span<const SwapchainVertex::IndexType>{g_indices2});
 }
 
 uint32_t VulkanExample::nSwapchainImages() const
@@ -2141,7 +2210,9 @@ uint32_t VulkanExample::draw(const RenderTextureUboLR& ubo)
 	return m_vulkan.drawFrame(*m_nativeWindow, ubo);
 }
 
-int run(NativeLaunchInfo info) try {
+int run(NativeLaunchInfo info)
+try
+{
 	// Connect to headset, specifying the capabilities we will use.
 	// NOTE:
 	// Result<T>::getValue() will throw on error, so we do not explicitly check return values.
@@ -2150,7 +2221,7 @@ int run(NativeLaunchInfo info) try {
 
 	// Create a window and setup a Vulkan instance associated with it
 	NativeWindow nativeWindow = CreateNativeWindow(info, appName);
-	VulkanExample app {};
+	VulkanExample app{};
 	app.initVulkan(nativeWindow);
 
 	// Connect to compositor
@@ -2158,9 +2229,9 @@ int run(NativeLaunchInfo info) try {
 	Fove::Compositor compositor = headset.createCompositor().getValue();
 
 	// Create a compositor layer, which we will use for submission
-	const Fove::CompositorLayerCreateInfo layerCreateInfo {}; // Using all default values
+	const Fove::CompositorLayerCreateInfo layerCreateInfo{}; // Using all default values
 	Fove::Result<Fove::CompositorLayer> layerOrError = compositor.createLayer(layerCreateInfo);
-	const Fove::Vec2i resolutionPerEye = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i { 1024, 1024 };
+	const Fove::Vec2i resolutionPerEye = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i{1024, 1024};
 
 	// The main rendering logic:
 	// (1) Render to a texture - this would be the main VR content
@@ -2171,8 +2242,8 @@ int run(NativeLaunchInfo info) try {
 
 	// Prepare gpu resources needed for rendering
 	const uint32_t nImages = app.nSwapchainImages();
-	app.initRenderTexturePipeline(nImages, 2 * resolutionPerEye.x, resolutionPerEye.y, Span<const RenderTextureVertex> { levelModelVerts });
-	app.initSwapchainPipeline(nImages, Span<const SwapchainVertex> { g_vertices2 }, Span<const SwapchainVertex::IndexType> { g_indices2 });
+	app.initRenderTexturePipeline(nImages, 2 * resolutionPerEye.x, resolutionPerEye.y, Span<const RenderTextureVertex>{levelModelVerts});
+	app.initSwapchainPipeline(nImages, Span<const SwapchainVertex>{g_vertices2}, Span<const SwapchainVertex::IndexType>{g_indices2});
 	// Define the rendering logic by pre-recording to command buffers
 	app.initCommandBuffers(nImages, N_MAX_FRAMES_IN_FLIGHT);
 
@@ -2193,11 +2264,12 @@ int run(NativeLaunchInfo info) try {
 		constexpr size_t numSphereFloats = sizeof(collisionSpheres) / sizeof(float);
 		static_assert(numSphereFloats % 5 == 0, "Invalid collision sphere format");
 		constexpr size_t numSpheres = numSphereFloats / 5;
-		for (size_t i = 0; i < numSpheres; ++i) {
+		for (size_t i = 0; i < numSpheres; ++i)
+		{
 			const float selectionid = collisionSpheres[i * 5 + 0];
 
 			Fove::ObjectCollider collider;
-			collider.center = Fove::Vec3 { collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4] };
+			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
 			collider.shapeType = Fove::ColliderType::Sphere;
 			collider.shapeDefinition.sphere.radius = collisionSpheres[i * 5 + 1];
 
@@ -2210,20 +2282,24 @@ int run(NativeLaunchInfo info) try {
 		}
 	}
 
-	while (true) {
+	while (true)
+	{
 		// Update ubo and selected model
-		RenderTextureUboLR ubo {};
+		RenderTextureUboLR ubo{};
 		{
 			if (!FlushWindowEvents(nativeWindow))
 				break;
 
 			// Create layer if we have none
 			// This allows us to connect to the compositor once it launches
-			if (!layerOrError) {
+			if (!layerOrError)
+			{
 				// Check if the compositor is ready first. Otherwise we will hang for a while when trying to create a layer
 				Fove::Result<bool> isReadyOrError = compositor.isReady();
-				if (isReadyOrError.isValid() && isReadyOrError.getValue()) {
-					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid()) {
+				if (isReadyOrError.isValid() && isReadyOrError.getValue())
+				{
+					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid())
+					{
 						// TODO resize rendering surface
 					}
 				}
@@ -2231,7 +2307,8 @@ int run(NativeLaunchInfo info) try {
 
 			// Determine the selection object based on what's being gazed at
 			headset.fetchEyeTrackingData();
-			if (const Fove::Result<int> gazeOrError = headset.getGazedObjectId(); gazeOrError && gazeOrError.getValue() != fove_ObjectIdInvalid) {
+			if (const Fove::Result<int> gazeOrError = headset.getGazedObjectId(); gazeOrError && gazeOrError.getValue() != fove_ObjectIdInvalid)
+			{
 				ubo.uboL.selection = static_cast<float>(gazeOrError.getValue());
 				ubo.uboR.selection = ubo.uboL.selection;
 			}
@@ -2244,7 +2321,8 @@ int run(NativeLaunchInfo info) try {
 		// such that we reduce the risk of missing a frame due to time spent during update
 		const Fove::Result<Fove::Pose> poseOrError = compositor.waitForRenderPose();
 		const Fove::Pose pose = poseOrError.isValid() ? poseOrError.getValue() : Fove::Pose();
-		if (poseOrError.isValid()) {
+		if (poseOrError.isValid())
+		{
 			// If there was an error waiting, it's possible that WaitForRenderPose returned immediately
 			// Sleep a little bit to prevent us from rendering at maximum framerate and eating massive resources/battery
 			this_thread::sleep_for(10ms);
@@ -2254,16 +2332,16 @@ int run(NativeLaunchInfo info) try {
 		{
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelView = QuatToMatrix(Conjugate(pose.orientation))    // Apply the HMD orientation
-			    * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
-			    * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelView = QuatToMatrix(Conjugate(pose.orientation))                                 // Apply the HMD orientation
+											 * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
+											 * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
 			// Adjust clipspace coordinates
-			const Fove::Matrix44 glToVk = { {
-				{ 1.0F, 0.0F, 0.0F, 0.0F },
-				{ 0.0F, -1.0F, 0.0F, 0.0F }, // y to -y
-				{ 0.0F, 0.0F, 0.5F, 0.5F },  // adjust z clip
-				{ 0.0F, 0.0F, 0.0F, 1.0F },
-			} };
+			const Fove::Matrix44 glToVk = {{
+				{1.0F, 0.0F, 0.0F, 0.0F},
+				{0.0F, -1.0F, 0.0F, 0.0F}, // y to -y
+				{0.0F, 0.0F, 0.5F, 0.5F},  // adjust z clip
+				{0.0F, 0.0F, 0.0F, 1.0F},
+			}};
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
@@ -2271,7 +2349,8 @@ int run(NativeLaunchInfo info) try {
 
 			// Fetch the projection matrices
 			Fove::Result<Fove::Stereo<Fove::Matrix44>> projectionsOrError = headset.getProjectionMatricesLH(0.01f, 1000.0f);
-			if (projectionsOrError.isValid()) {
+			if (projectionsOrError.isValid())
+			{
 				ubo.uboL.mvp = glToVk * Transpose(projectionsOrError->l) * TranslationMatrix(+halfIOD, 0, 0) * modelView;
 				ubo.uboR.mvp = glToVk * Transpose(projectionsOrError->r) * TranslationMatrix(-halfIOD, 0, 0) * modelView;
 				// Render the scene twice, once for the left, once for the right
@@ -2282,16 +2361,17 @@ int run(NativeLaunchInfo info) try {
 		const auto index = app.draw(ubo);
 
 		// Present rendered results to compositor
-		if (layerOrError) {
+		if (layerOrError)
+		{
 			const Fove::VulkanTexture tex = app.texture(index);
 
-			Fove::CompositorLayerSubmitInfo submitInfo {};
+			Fove::CompositorLayerSubmitInfo submitInfo{};
 			submitInfo.layerId = layerOrError->layerId;
 			submitInfo.pose = pose;
 			submitInfo.left.texInfo = &tex;
 			submitInfo.right.texInfo = &tex;
 
-			Fove::TextureBounds bounds {};
+			Fove::TextureBounds bounds{};
 			bounds.top = 0.0F;
 			bounds.bottom = 1.0F;
 			bounds.left = 0.0F;
@@ -2314,17 +2394,20 @@ int run(NativeLaunchInfo info) try {
 	}
 
 	return 0;
-} catch (...) {
+}
+catch (...)
+{
 	ShowErrorBox("Error: " + currentExceptionMessage());
 	return -1;
 }
 
-}
+} // namespace
 
 void Main(NativeLaunchInfo info)
 {
-	const int ret = run(move(info));
-	if (ret != 0) {
+	const int ret = run(std::move(info));
+	if (ret != 0)
+	{
 		cerr << "VulkanExample exitted abnormally\n";
 	}
 	return;

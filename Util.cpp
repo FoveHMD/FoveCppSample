@@ -1,12 +1,11 @@
 #include "Util.h"
-#include <algorithm>
-#include <codecvt>
-#include <iterator>
-#include <locale>
-#include <thread>
+#include <cstdint>
+#include <exception>
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <memory>
+#include <string>
 #endif
 
 using namespace std;
@@ -17,15 +16,24 @@ string currentExceptionMessage()
 	if (nullptr == exceptionPtr)
 		return "no exception";
 
-	try {
+	try
+	{
 		rethrow_exception(exceptionPtr);
-	} catch (const char* str) {
+	}
+	catch (const char* str)
+	{
 		return str;
-	} catch (const string& str) {
+	}
+	catch (const string& str)
+	{
 		return str;
-	} catch (const exception& e) {
+	}
+	catch (const exception& e)
+	{
 		return e.what();
-	} catch (...) {
+	}
+	catch (...)
+	{
 	}
 
 	return "unknown exception";
@@ -33,12 +41,123 @@ string currentExceptionMessage()
 
 string ToUtf8(const wstring& utf16)
 {
-	return wstring_convert<codecvt_utf8_utf16<wchar_t>, wchar_t>().to_bytes(utf16);
+	// This is a simple conversion just to keep this example code simple and dependency free
+	// We recommend using a more advanced, performant, and well tested library for real applications
+
+	string utf8;
+	uint32_t lastCodePoint = 0; // Used for surrogate pairs
+	for (const wchar_t& ch : utf16)
+	{
+		// First, decode the utf16 code point, handling surrogate pairs
+		uint32_t codePoint = static_cast<uint32_t>(ch);
+		if (lastCodePoint != 0)
+		{
+			// This is the second half of a surrogate pair
+			codePoint = 0x10000 + ((lastCodePoint - 0xd800) << 10) + (codePoint - 0xdc00);
+			lastCodePoint = 0;
+		}
+		else if (codePoint >= 0xd800 && codePoint <= 0xdbff)
+		{
+			// This is the first half of a surrogate pair
+			lastCodePoint = codePoint;
+			continue; // Loop around to get the next half of the pair
+		}
+		else
+		{
+			// This is not a surrogate pair, just a single code point
+			// Nothing needed, codePoint is jused used below
+		}
+
+		// Write out the utf8 char
+		if (codePoint <= 0x7f) // 1-byte utf8 char
+		{
+			utf8 += static_cast<char>(codePoint);
+		}
+		else if (ch <= 0x7ff) // 2-byte utf8 char
+		{
+			utf8 += static_cast<char>(0xc0 | ((codePoint >> 6) & 0x1f));
+			utf8 += static_cast<char>(0x80 | (codePoint & 0x3f));
+		}
+		else if (ch <= 0xffff) // 3-byte utf8 char
+		{
+			utf8 += static_cast<char>(0xe0 | ((codePoint >> 12) & 0x0f));
+			utf8 += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3f));
+			utf8 += static_cast<char>(0x80 | (codePoint & 0x3f));
+		}
+		else if (ch <= 0x10ffff) // 4-byte utf8 char
+		{
+			utf8 += static_cast<char>(0xf0 | ((codePoint >> 18) & 0x07));
+			utf8 += static_cast<char>(0x80 | ((codePoint >> 12) & 0x3f));
+			utf8 += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3f));
+			utf8 += static_cast<char>(0x80 | (codePoint & 0x3f));
+		}
+	}
+	return utf8;
 }
 
 wstring ToUtf16(const string& str)
 {
-	return wstring_convert<codecvt_utf8_utf16<wchar_t>>().from_bytes(str);
+	// This is a simple conversion just to keep this example code simple and dependency free
+	// We recommend using a more advanced, performant, and well tested library for real applications
+
+	wstring utf16;
+	for (auto it = str.begin(); it != str.end();)
+	{
+		// Read the next utf8 code point
+		uint32_t codePoint = 0;
+		if ((*it & 0x80) == 0)
+		{
+			codePoint = *it & 0x7f;
+			++it;
+		}
+		else if ((*it & 0xe0) == 0xc0)
+		{
+			codePoint = *it & 0x1f;
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+		}
+		else if ((*it & 0xf0) == 0xe0)
+		{
+			codePoint = *it & 0x0f;
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+		}
+		else if ((*it & 0xf8) == 0xf0)
+		{
+			codePoint = *it & 0x07;
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+			codePoint = (codePoint << 6) | (*it & 0x3f);
+			++it;
+		}
+		else
+		{
+			// Invalid utf8, skip it
+			++it;
+			continue;
+		}
+
+		// Write the code point to utf16
+		if (codePoint <= 0xffff)
+		{
+			utf16 += static_cast<wchar_t>(codePoint);
+		}
+		else
+		{
+			// Convert to a surrogate pair
+			codePoint -= 0x10000;
+			utf16 += static_cast<wchar_t>(0xd800 + ((codePoint >> 10) & 0x3ff));
+			utf16 += static_cast<wchar_t>(0xdc00 + (codePoint & 0x3ff));
+		}
+	}
+	return utf16;
 }
 
 Fove::Quaternion AxisAngleToQuat(const float vx, const float vy, const float vz, const float angle)
@@ -142,8 +261,10 @@ Fove::Matrix44 TranslationMatrix(const float x, const float y, const float z)
 Fove::Matrix44 operator*(const Fove::Matrix44& m1, const Fove::Matrix44& m2)
 {
 	Fove::Matrix44 ret;
-	for (int row = 0; row < 4; row++) {
-		for (int column = 0; column < 4; column++) {
+	for (int row = 0; row < 4; row++)
+	{
+		for (int column = 0; column < 4; column++)
+		{
 			float v = 0;
 			for (int i = 0; i < 4; i++)
 				v += m1.mat[row][i] * m2.mat[i][column];
@@ -153,7 +274,9 @@ Fove::Matrix44 operator*(const Fove::Matrix44& m1, const Fove::Matrix44& m2)
 	return ret;
 }
 
-string GetErrorString(const ErrorType error) noexcept try {
+string GetErrorString(const ErrorType error) noexcept
+try
+{
 	string ret = to_string(error);
 
 #ifdef _WIN32
@@ -161,7 +284,8 @@ string GetErrorString(const ErrorType error) noexcept try {
 	LPWSTR _buffer = nullptr;
 	const DWORD size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&_buffer, 0, nullptr);
 	const unique_ptr<wchar_t, decltype(&LocalFree)> buffer(_buffer, &LocalFree);
-	if (size > 0) {
+	if (size > 0)
+	{
 		// Add message to return buffer
 		const wstring wstr(buffer.get(), size);
 		ret += ' ';
@@ -173,7 +297,9 @@ string GetErrorString(const ErrorType error) noexcept try {
 #endif
 
 	return ret;
-} catch (...) {
+}
+catch (...)
+{
 	// If we fail in any way generating the error string, return a generic error and move on
 	return "ERROR_FAILURE";
 }

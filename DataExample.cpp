@@ -7,8 +7,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
-#include <memory>
-#include <stdexcept>
+#include <string>
 #include <thread>
 
 // Use std namespace for convenience
@@ -18,7 +17,8 @@ using namespace std;
 bool checkError(const Fove::ErrorCode errorCode)
 {
 	// Check for error
-	switch (errorCode) {
+	switch (errorCode)
+	{
 	case Fove::ErrorCode::None:
 		return true;
 
@@ -52,22 +52,26 @@ bool checkError(const Fove::ErrorCode errorCode)
 	return false;
 }
 
-int main() try {
+int main()
+try
+{
 	// Create the Headset object, taking the capabilities we need in our program
 	// Different capabilities may enable different hardware or software, so use only the capabilities that are needed
 	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::EyeTracking).getValue();
 
 	// Loop indefinitely
-	while (true) {
+	while (true)
+	{
 		// Wait for the next eye frame
 		// The current thread will sleep until a new frame comes in
 		// This allows us to capture data at the full frame rate of eye tracking and not use too much CPU
 		const auto waitResult = headset.waitForProcessedEyeFrame();
 		const auto fetchResult = headset.fetchEyeTrackingData();
-		if (!checkError(waitResult.getError()) || !checkError(fetchResult.getError())) {
+		if (!checkError(waitResult.getError()) || !checkError(fetchResult.getError()))
+		{
 			// Sleep for a second in the event of failure
 			// If the wait function fails, it might have returned immediately, and we may eat up 100% of a CPU core if we don't sleep manually
-			this_thread::sleep_for(chrono::seconds { 1 }); // Can use 1s in C++14 and later
+			this_thread::sleep_for(chrono::seconds{1}); // Can use 1s in C++14 and later
 
 			continue; // Skip getting the gaze vectors
 		}
@@ -78,16 +82,21 @@ int main() try {
 
 		// Get the gaze vector
 		const auto gazeData = headset.getCombinedGazeRay();
-		if (gazeData.isValid()) {
+		if (gazeData.isValid())
+		{
 			cout << "Gaze vectors:   (" << fixed << setprecision(3)
-			     << setw(5) << gazeData->direction.x << ", "
-			     << setw(5) << gazeData->direction.y << ", "
-			     << setw(5) << gazeData->direction.z << ')' << endl;
-		} else {
+				 << setw(5) << gazeData->direction.x << ", "
+				 << setw(5) << gazeData->direction.y << ", "
+				 << setw(5) << gazeData->direction.z << ')' << endl;
+		}
+		else
+		{
 			cout << "getCombinedGazeRay returned error #" << static_cast<int>(gazeData.getError()) << endl;
 		}
 	}
-} catch (...) {
+}
+catch (...)
+{
 
 	// If an exception is thrown for any reason, log it and exit
 	// The FOVE api is designed not to throw externally, but the standard library can

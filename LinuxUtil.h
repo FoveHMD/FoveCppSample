@@ -10,12 +10,14 @@ using XWindow = unsigned long;     // Window = XID = init in X11/X.h
 using XDisplay = struct _XDisplay; // Opaque handle to X11 display
 
 // Linux version of NativeLaunchInfo
-struct NativeLaunchInfo {
+struct NativeLaunchInfo
+{
 	//	HINSTANCE instance = nullptr;
 	//	int cmdShow = 0;
 };
 
-struct XWindowSize {
+struct XWindowSize
+{
 	unsigned int width;
 	unsigned int height;
 };
@@ -23,7 +25,8 @@ struct XWindowSize {
 // Windows version of NativeWindow
 class XlibWindowImpl;
 
-struct NativeWindow {
+struct NativeWindow
+{
 	std::unique_ptr<XlibWindowImpl> m_impl;
 
 	XDisplay* xDisplay();

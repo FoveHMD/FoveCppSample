@@ -1,13 +1,15 @@
 #include "LinuxUtil.h"
 #include "NativeUtil.h"
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
 #include <thread>
+#include <type_traits>
+#include <utility>
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -19,7 +21,8 @@
 
 using namespace std;
 
-namespace {
+namespace
+{
 
 static_assert(is_same<Display, XDisplay>::value, "X11/Display and our XDisplay should be the same type");
 static_assert(is_same<Window, XWindow>::value, "X11/Window and our XWindow should be the same type");
@@ -36,15 +39,17 @@ unique_ptr<XDisplay, void (*)(XDisplay*)> connectX()
 {
 	XInitThreads();
 	XDisplay* const display = XOpenDisplay(nullptr);
-	if (!display) {
+	if (!display)
+	{
 		cerr << "No X display available.";
-		return { nullptr, closeXDisplay };
+		return {nullptr, closeXDisplay};
 	}
 
-	return { display, closeXDisplay };
+	return {display, closeXDisplay};
 }
 
-enum XKeyCode {
+enum XKeyCode
+{
 	ESC,
 	Q,
 	UNKNOWN,
@@ -52,7 +57,8 @@ enum XKeyCode {
 
 XKeyCode mapKey(const unsigned int keycode)
 {
-	switch (keycode) {
+	switch (keycode)
+	{
 	case 9:
 		return XKeyCode::ESC;
 	case 24:
@@ -71,10 +77,11 @@ void ShowErrorBox(const std::string& err)
 	cerr << "Error: " << err << '\n'; // FIXME
 }
 
-class XlibWindowImpl {
+class XlibWindowImpl
+{
 public:
 	XlibWindowImpl()
-	    : m_display { connectX() }
+		: m_display{connectX()}
 	{
 	}
 
@@ -98,7 +105,7 @@ private:
 	void startEventThread()
 	{
 		m_keepAlive = true;
-		m_eventThread = thread { &XlibWindowImpl::eventThread, this };
+		m_eventThread = thread{&XlibWindowImpl::eventThread, this};
 	}
 
 	void stopEventThread()
@@ -108,26 +115,34 @@ private:
 
 	void eventThread()
 	{
-		unique_lock<mutex> dataLock { m_mutex };
-		while (m_keepAlive) {
+		unique_lock<mutex> dataLock{m_mutex};
+		while (m_keepAlive)
+		{
 			// Arbitrary sleep to not eat up too much CPU
-			if (!XPending(nativeHandle())) {
+			if (!XPending(nativeHandle()))
+			{
 				m_eventThreadCV.wait_for(dataLock, 25ms);
 				continue;
 			}
 
-			XEvent event {};
+			XEvent event{};
 			XNextEvent(nativeHandle(), &event);
 
-			if (event.type == ClientMessage && event.xclient.data.l[0] == m_deleteMessage) {
+			if (event.type == ClientMessage && event.xclient.data.l[0] == m_deleteMessage)
+			{
 				cout << "Window close requested through wm\n";
 				m_keepAlive = false;
-			} else if (event.type == ConfigureNotify) {
+			}
+			else if (event.type == ConfigureNotify)
+			{
 				// TODO
 				// updateSize(&dataLock.data());
-			} else if (event.type == KeyPress) {
+			}
+			else if (event.type == KeyPress)
+			{
 				const XKeyCode code = mapKey(event.xkey.keycode);
-				if (code == XKeyCode::ESC || code == XKeyCode::Q) {
+				if (code == XKeyCode::ESC || code == XKeyCode::Q)
+				{
 					cout << "Window close requested via key press\n";
 					m_keepAlive = false;
 				}
@@ -143,10 +158,10 @@ private:
 	friend bool FlushWindowEvents(NativeWindow&);
 	Atom m_deleteMessage;
 
-	mutex m_mutex {}; // guards m_display
-	condition_variable m_eventThreadCV {};
-	thread m_eventThread {};
-	atomic_bool m_keepAlive { true };
+	mutex m_mutex{}; // guards m_display
+	condition_variable m_eventThreadCV{};
+	thread m_eventThread{};
+	atomic_bool m_keepAlive{true};
 };
 
 NativeWindow::NativeWindow() = default;
@@ -171,12 +186,12 @@ XDisplay* NativeWindow::xDisplay()
 
 XWindowSize NativeWindow::windowSize()
 {
-	XWindowSize size {};
-	Window root {};
-	int xOffset {};
-	int yOffset {};
-	unsigned int border {};
-	unsigned int depth {};
+	XWindowSize size{};
+	Window root{};
+	int xOffset{};
+	int yOffset{};
+	unsigned int border{};
+	unsigned int depth{};
 	XGetGeometry(xDisplay(), xWindow(), &root, &xOffset, &yOffset, &size.width, &size.height, &border, &depth);
 	return size;
 }
@@ -188,19 +203,19 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 	// Set up Xlib window
 	const int screen = XDefaultScreen(display->nativeHandle());
 	const Window rootWindow = RootWindow(display->nativeHandle(), screen);
-	XSetWindowAttributes windowAttributes {};
+	XSetWindowAttributes windowAttributes{};
 	Window window = XCreateWindow(
-	    display->nativeHandle(),
-	    rootWindow,
-	    15, 15, // arbitrary window offsets
-	    windowSizeX,
-	    windowSizeY,
-	    10, // arbitrary border width
-	    CopyFromParent,
-	    InputOutput,
-	    CopyFromParent,
-	    CWColormap,
-	    &windowAttributes);
+		display->nativeHandle(),
+		rootWindow,
+		15, 15, // arbitrary window offsets
+		windowSizeX,
+		windowSizeY,
+		10, // arbitrary border width
+		CopyFromParent,
+		InputOutput,
+		CopyFromParent,
+		CWColormap,
+		&windowAttributes);
 	XStoreName(display->nativeHandle(), window, windowTitle.c_str());
 
 	Atom deleteMessage = XInternAtom(display->nativeHandle(), "WM_DELETE_WINDOW", False);
@@ -216,10 +231,10 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 	XFlush(display->nativeHandle());
 	display->startEventThread();
 
-	NativeWindow nativeWindow {};
-	nativeWindow.m_impl = move(display);
+	NativeWindow nativeWindow{};
+	nativeWindow.m_impl = std::move(display);
 
-	return move(nativeWindow);
+	return std::move(nativeWindow);
 }
 
 bool FlushWindowEvents(NativeWindow& window)

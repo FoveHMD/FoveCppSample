@@ -6,10 +6,16 @@
 # >> clang-format -i *.cpp *.h  <-- Format all C++ code in the project
 # >> git diff                   <-- See what formatting was changed
 ---
-BasedOnStyle:          Webkit
-Standard:              Cpp11
-IndentWidth:           4
-TabWidth:              4
-UseTab:                ForIndentation
-AlignTrailingComments: true
 
+BasedOnStyle:          Microsoft
+Standard:              Cpp11
+
+# Modifications to the Microsoft style that bring it close to what FOVE uses internally
+ColumnLimit:                      0
+AllowShortFunctionsOnASingleLine: All
+AccessModifierOffset:             -4
+PointerBindsToType:               true
+IndentWidth:                      4
+TabWidth:                         4
+UseTab:                           ForContinuationAndIndentation
+AlignTrailingComments:            true

@@ -31,7 +31,8 @@ constexpr int floatsPerVert = 7;
 constexpr float playerHeight = 1.6f;
 
 // Constants buffer for our shader
-struct ConstantsBuffer {
+struct ConstantsBuffer
+{
 	Fove::Matrix44 mvp;   // Modelview & projection - the complete transform from world coordinates to normalized device coords
 	float selection = -1; // The currently selected object. Each vertex know whats object it's part of and will "light up" if this is equal
 };
@@ -50,7 +51,8 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 		throw "Unable to create IDXGIFactory1: " + HResultToString(err);
 
 	// Loop through existing adapters
-	for (UINT i = 0;; ++i) {
+	for (UINT i = 0;; ++i)
+	{
 		// Get next the adapter
 		CComPtr<IDXGIAdapter> adapter;
 		err = factory->EnumAdapters(i, &adapter);
@@ -60,7 +62,7 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 			throw "Failed to enumerate adapters: " + HResultToString(err);
 
 		// Get info about this adapter
-		DXGI_ADAPTER_DESC adapterDesc {};
+		DXGI_ADAPTER_DESC adapterDesc{};
 		err = adapter->GetDesc(&adapterDesc);
 		if (FAILED(err))
 			throw "Unable to get adapter description: " + HResultToString(err);
@@ -76,16 +78,16 @@ CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext, 
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 	CComPtr<ID3D11Device> device;
 	const HRESULT err = D3D11CreateDevice(
-	    adapterOrNull,
-	    adapterOrNull ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
-	    nullptr,
-	    0, // D3D11_CREATE_DEVICE_DEBUG
-	    &featureLevel,
-	    1,
-	    D3D11_SDK_VERSION,
-	    &device,
-	    nullptr,
-	    &deviceContext);
+		adapterOrNull,
+		adapterOrNull ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
+		nullptr,
+		0, // D3D11_CREATE_DEVICE_DEBUG
+		&featureLevel,
+		1,
+		D3D11_SDK_VERSION,
+		&device,
+		nullptr,
+		&deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
 		throw "Unable to create device: " + HResultToString(err);
 
@@ -157,7 +159,9 @@ void RenderScene(ID3D11DeviceContext& deviceContext, ID3D11Buffer& constantsBuff
 
 // Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
-void Main(NativeLaunchInfo nativeLaunchInfo) try {
+void Main(NativeLaunchInfo nativeLaunchInfo)
+try
+{
 	// Connect to headset, specifying the capabilities we will use
 	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::OrientationTracking | Fove::ClientCapabilities::PositionTracking | Fove::ClientCapabilities::EyeTracking | Fove::ClientCapabilities::GazedObjectDetection).getValue();
 
@@ -167,14 +171,30 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	// Create a compositor layer, which we will use for submission
 	const Fove::CompositorLayerCreateInfo layerCreateInfo; // Using all default values
 	Fove::Result<Fove::CompositorLayer> layerOrError = compositor.createLayer(layerCreateInfo);
-	Fove::Vec2i renderSurfaceSize = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i { 1024, 1024 };
+	Fove::Vec2i renderSurfaceSize = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i{1024, 1024};
 
-	// Get the adapter ID that the compositor is running on
-	// This is needed for multi-GPU machines
+	// Get the adapter ID that the compositor is running on (incase there are multiple GPUs on the machine)
 	// The client *must* run on the same GPU as the compositor or texture submission will not work.
+	// Wait up to a small amount of time for this to work, as the compositor connection may take a second or two
+	// In the event of timeout, we just move on and use the default adapter. This may be wrong but it's better than hanging forever
+	// The truely correct way to do it is to query every frame and check for adapter change and recreate the context as needed,
+	// but that would complicate the logic too much for this simple example.
 	CComPtr<IDXGIAdapter> adapterOrNull;
 	{
-		const Fove::Result<Fove::AdapterId> adapterIdOrError = compositor.queryAdapterId(nullptr);
+		const chrono::time_point startTime = chrono::system_clock::now();
+		Fove::Result<Fove::AdapterId> adapterIdOrError;
+		while (true)
+		{
+			adapterIdOrError = compositor.queryAdapterId(nullptr);
+			if (adapterIdOrError.isValid())
+				break;
+
+			if (chrono::system_clock::now() - startTime > 2s)
+			{
+				cout << "Compositor took too long to start, continuing without adapter id" << endl;
+				break;
+			}
+		}
 		if (adapterIdOrError.isValid())
 			adapterOrNull = FindAdapter(adapterIdOrError.getValue());
 		else
@@ -263,8 +283,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	deviceContext->VSSetShader(vertexShader, nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 	CComPtr<ID3D11InputLayout> vertexLayout;
 	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), g_vert, sizeof(g_vert), &vertexLayout);
@@ -327,11 +347,12 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		constexpr size_t numSphereFloats = sizeof(collisionSpheres) / sizeof(float);
 		static_assert(numSphereFloats % 5 == 0, "Invalid collision sphere format");
 		constexpr size_t numSpheres = numSphereFloats / 5;
-		for (size_t i = 0; i < numSpheres; ++i) {
+		for (size_t i = 0; i < numSpheres; ++i)
+		{
 			const float selectionid = collisionSpheres[i * 5 + 0];
 
 			Fove::ObjectCollider collider;
-			collider.center = Fove::Vec3 { collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4] };
+			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
 			collider.shapeType = Fove::ColliderType::Sphere;
 			collider.shapeDefinition.sphere.radius = collisionSpheres[i * 5 + 1];
 
@@ -345,7 +366,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 	}
 
 	// Main loop
-	while (true) {
+	while (true)
+	{
 		// Update
 		float selection = -1; // Selected model that will be computed each time in the update phase
 		{
@@ -354,11 +376,14 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Create layer if we have none
 			// This allows us to connect to the compositor once it launches
-			if (!layerOrError) {
+			if (!layerOrError)
+			{
 				// Check if the compositor is ready first. Otherwise we will hang for a while when trying to create a layer
 				Fove::Result<bool> isReadyOrError = compositor.isReady();
-				if (isReadyOrError.isValid() && isReadyOrError.getValue()) {
-					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid()) {
+				if (isReadyOrError.isValid() && isReadyOrError.getValue())
+				{
+					if ((layerOrError = compositor.createLayer(layerCreateInfo)).isValid())
+					{
 						// Todo: resize rendering surface
 					}
 				}
@@ -378,7 +403,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// such that we reduce the risk of missing a frame due to time spent during update
 		const Fove::Result<Fove::Pose> poseOrError = compositor.waitForRenderPose();
 		const Fove::Pose pose = poseOrError.isValid() ? poseOrError.getValue() : Fove::Pose();
-		if (!poseOrError.isValid()) {
+		if (!poseOrError.isValid())
+		{
 			// If there was an error waiting, it's possible that WaitForRenderPose returned immediately
 			// Sleep a little bit to prevent us from rendering at maximum framerate and eating massive resources/battery
 			this_thread::sleep_for(10ms);
@@ -387,15 +413,15 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		// Render the scene
 		{
 			// Clear the back buffer
-			const float color[] = { 0.3f, 0.3f, 0.8f, 0.3f };
+			const float color[] = {0.3f, 0.3f, 0.8f, 0.3f};
 			deviceContext->ClearRenderTargetView(renderTargetView, color);
 			deviceContext->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
 
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation)) *  // Apply the HMD orientation
-			    TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) * // Apply the position tracking offset
-			    TranslationMatrix(0, -playerHeight, 0);                                   // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation)) *                               // Apply the HMD orientation
+											 TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) * // Apply the position tracking offset
+											 TranslationMatrix(0, -playerHeight, 0);                                   // Move ground downwards to compensate for player height
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
@@ -403,7 +429,8 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 
 			// Fetch the projection matrices
 			Fove::Result<Fove::Stereo<Fove::Matrix44>> projectionsOrError = headset.getProjectionMatricesLH(0.01f, 1000.0f);
-			if (projectionsOrError.isValid()) {
+			if (projectionsOrError.isValid())
+			{
 				// Render left eye
 				deviceContext->RSSetViewports(1, &leftViewport);
 				RenderScene(*deviceContext, *constantBuffer, Transpose(projectionsOrError->l), TranslationMatrix(halfIOD, 0, 0) * modelview, selection);
@@ -415,8 +442,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		}
 
 		// Present rendered results to compositor
-		if (layerOrError) {
-			Fove::DX11Texture tex { backBuffer };
+		if (layerOrError)
+		{
+			Fove::DX11Texture tex{backBuffer};
 
 			Fove::CompositorLayerSubmitInfo submitInfo;
 			submitInfo.layerId = layerOrError->layerId;
@@ -450,7 +478,9 @@ void Main(NativeLaunchInfo nativeLaunchInfo) try {
 		camPose.rotation = pose.orientation;
 		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
-} catch (...) {
+}
+catch (...)
+{
 	// Display any error as a popup box then exit the program
 	ShowErrorBox("Error: " + currentExceptionMessage());
 }

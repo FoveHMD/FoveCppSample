@@ -1,6 +1,7 @@
 #pragma once
 #include "FoveAPI.h"
 #include "NativeUtil.h"
+#include "Util.h"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -15,6 +16,14 @@
 #include <Windows.h>
 #include <gl/GL.h>
 #include <map>
+#elif defined(__APPLE__)
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
+#else
+#define GL_GLEXT_PROTOTYPES
+#include <EGL/egl.h>
+#include <GL/glcorearb.h> // Note: Once we include GL/glcorearb.h, we no longer are allowed to include GL/gl.h nor GL/glext.h
+#undef GL_GLEXT_PROTOTYPES
 #endif
 
 // On windows we need to take the extra step to define all GL API stuff that we need, above GL 1.1
@@ -31,7 +40,8 @@ Return GetGLFunc(const char* const funcName, Args... args)
 	// Query the location of the function on the first call
 	static map<const char*, const void*> procLocations;
 	const void*& location = procLocations[funcName];
-	if (!location) {
+	if (!location)
+	{
 		location = wglGetProcAddress(funcName);
 		if (!location)
 			throw std::runtime_error(std::string("Unable to find ") + funcName);
@@ -129,9 +139,10 @@ auto GlCall(const GlFunc func, Args&&... args)
 	// Use RAII to invoke GlCheckError after the func() is invoked below
 	// Otherwise we must assign the result of func() to a temporary, check, then return the temporary
 	// Doing so would not work for return types, necessatating a void-return specialization of this function
-	struct Helper {
+	struct Helper
+	{
 		Helper(GlFunc func)
-		    : f(func)
+			: f(func)
 		{
 		}
 		~Helper() noexcept(false)
@@ -157,7 +168,8 @@ void ApplyWindowViewport(NativeWindow&, NativeOpenGLContext&);
 void SwapBuffers(NativeWindow&, NativeOpenGLContext&);
 
 // Resource type used by the below GlResource class
-enum class GlResourceType {
+enum class GlResourceType
+{
 	Buffer,
 	Vao,
 	Fbo,
@@ -169,12 +181,13 @@ enum class GlResourceType {
 
 // Simple RAII wrapper for any GL resource
 template <GlResourceType ResourceType>
-struct GlResource {
+struct GlResource
+{
 public:
 	GlResource() {}
 
 	GlResource(GlResource&& other)
-	    : name_(std::move(other.name_))
+		: name_(std::move(other.name_))
 	{
 	}
 
@@ -198,7 +211,8 @@ public:
 	template <typename... CreateArgs>
 	void Create(CreateArgs&&... createArgs)
 	{
-		if (!name_) {
+		if (!name_)
+		{
 			const GLuint name = GlCall(GlResourceInfo::GenFunc, std::forward<CreateArgs>(createArgs)...);
 			name_ = std::make_unique<GLuint>(name);
 		}
@@ -207,7 +221,8 @@ public:
 	template <typename... BindArgs>
 	void CreateAndBind(BindArgs&&... bindArgs)
 	{
-		if (!name_) {
+		if (!name_)
+		{
 			const GLuint name = GlCall(GlResourceInfo::GenFunc);
 			name_ = std::make_unique<GLuint>(name);
 		}
@@ -224,7 +239,9 @@ public:
 		GlCall(GlResourceInfo::BindFunc, std::forward<BindArgs>(bindArgs)..., *name_);
 	}
 
-	void Clear() try {
+	void Clear()
+	try
+	{
 		if (!name_)
 			return;
 
@@ -232,14 +249,17 @@ public:
 		name_.reset();
 
 		GlCall(GlResourceInfo::DelFunc, name);
-	} catch (...) {
+	}
+	catch (...)
+	{
 		// If failing to clear a resource, log an error but consider it non-fatal
 		std::cerr << "GlResource error: " << currentExceptionMessage() << std::endl;
 	}
 
 	void operator=(GlResource&& resource)
 	{
-		if (&resource != this) {
+		if (&resource != this)
+		{
 			Clear();
 			name_ = std::move(resource.name_);
 		}
@@ -269,21 +289,24 @@ void DelAdapter(const GLuint name)
 }
 
 template <>
-struct GlResource<GlResourceType::Buffer>::GlResourceInfo {
+struct GlResource<GlResourceType::Buffer>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &GenAdapter<&glGenBuffers>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteBuffers>;
 	static constexpr auto BindFunc = &glBindBuffer;
 };
 
 template <>
-struct GlResource<GlResourceType::Vao>::GlResourceInfo {
+struct GlResource<GlResourceType::Vao>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &GenAdapter<&glGenVertexArrays>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteVertexArrays>;
 	static constexpr auto BindFunc = &glBindVertexArray;
 };
 
 template <>
-struct GlResource<GlResourceType::Fbo>::GlResourceInfo {
+struct GlResource<GlResourceType::Fbo>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &GenAdapter<&glGenFramebuffers>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteFramebuffers>;
 	static constexpr auto BindFunc = &glBindFramebuffer;
@@ -294,12 +317,12 @@ struct GlResource<GlResourceType::Fbo>::GlResourceInfo {
 // For some reason MSVC 2017 sometimes gives "cannot deduce type for 'auto' from 'overloaded-function'"
 // when taking the address of functions declared with APIENTRY, so we have a quick adapter here
 
-inline void glGenTextures2(GLsizei n, GLuint *textures)
+inline void glGenTextures2(GLsizei n, GLuint* textures)
 {
 	glGenTextures(n, textures);
 }
 
-inline void glDeleteTextures2(GLsizei n, const GLuint *textures)
+inline void glDeleteTextures2(GLsizei n, const GLuint* textures)
 {
 	glDeleteTextures(n, textures);
 }
@@ -309,7 +332,8 @@ inline void glDeleteTextures2(GLsizei n, const GLuint *textures)
 #endif
 
 template <>
-struct GlResource<GlResourceType::Texture>::GlResourceInfo {
+struct GlResource<GlResourceType::Texture>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &GenAdapter<&glGenTextures>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteTextures>;
 
@@ -319,20 +343,23 @@ struct GlResource<GlResourceType::Texture>::GlResourceInfo {
 };
 
 template <>
-struct GlResource<GlResourceType::Shader>::GlResourceInfo {
+struct GlResource<GlResourceType::Shader>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &glCreateShader;
 	static constexpr auto DelFunc = &glDeleteShader;
 };
 
 template <>
-struct GlResource<GlResourceType::Program>::GlResourceInfo {
+struct GlResource<GlResourceType::Program>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &glCreateProgram;
 	static constexpr auto DelFunc = &glDeleteProgram;
 	static constexpr auto BindFunc = &glUseProgram;
 };
 
 template <>
-struct GlResource<GlResourceType::RenderBuffer>::GlResourceInfo {
+struct GlResource<GlResourceType::RenderBuffer>::GlResourceInfo
+{
 	static constexpr auto GenFunc = &GenAdapter<&glGenRenderbuffers>;
 	static constexpr auto DelFunc = &DelAdapter<&glDeleteRenderbuffers>;
 	static constexpr auto BindFunc = &glBindRenderbuffer;
@@ -340,6 +367,12 @@ struct GlResource<GlResourceType::RenderBuffer>::GlResourceInfo {
 
 // Implementation of NativeOpenGLContext struct
 #ifdef _WIN32
-struct NativeOpenGLContext {
+struct NativeOpenGLContext
+{
+};
+#elif defined(__APPLE__)
+#else
+struct NativeOpenGLContext
+{
 };
 #endif
