@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void GlCheckError(const char* function)
+void glCheckError(const char* function)
 {
 	string errorStr;
 	const auto append = [&errorStr](string str) {
@@ -49,19 +49,19 @@ void GlCheckError(const char* function)
 		throw "Error in "s + function + ": " + errorStr;
 }
 
-const char* GlFuncToString(const void* const func)
+const char* glFuncToString(const void* const func)
 {
 	static const map<const void*, const char*> functions = {
-		{(const void*)&DelAdapter<&glDeleteBuffers>, "glDeleteBuffers"},
-		{(const void*)&DelAdapter<&glDeleteFramebuffers>, "glDeleteFramebuffers"},
-		{(const void*)&DelAdapter<&glDeleteRenderbuffers>, "glDeleteRenderbuffers"},
-		{(const void*)&DelAdapter<&glDeleteTextures>, "glDeleteTextures"},
-		{(const void*)&DelAdapter<&glDeleteVertexArrays>, "glDeleteVertexArrays"},
-		{(const void*)&GenAdapter<&glGenBuffers>, "glGenBuffers"},
-		{(const void*)&GenAdapter<&glGenFramebuffers>, "glGenFramebuffers"},
-		{(const void*)&GenAdapter<&glGenRenderbuffers>, "glGenRenderbuffers"},
-		{(const void*)&GenAdapter<&glGenTextures>, "glGenTextures"},
-		{(const void*)&GenAdapter<&glGenVertexArrays>, "glGenVertexArrays"},
+		{(const void*)&delAdapter<&glDeleteBuffers>, "glDeleteBuffers"},
+		{(const void*)&delAdapter<&glDeleteFramebuffers>, "glDeleteFramebuffers"},
+		{(const void*)&delAdapter<&glDeleteRenderbuffers>, "glDeleteRenderbuffers"},
+		{(const void*)&delAdapter<&glDeleteTextures>, "glDeleteTextures"},
+		{(const void*)&delAdapter<&glDeleteVertexArrays>, "glDeleteVertexArrays"},
+		{(const void*)&genAdapter<&glGenBuffers>, "glGenBuffers"},
+		{(const void*)&genAdapter<&glGenFramebuffers>, "glGenFramebuffers"},
+		{(const void*)&genAdapter<&glGenRenderbuffers>, "glGenRenderbuffers"},
+		{(const void*)&genAdapter<&glGenTextures>, "glGenTextures"},
+		{(const void*)&genAdapter<&glGenVertexArrays>, "glGenVertexArrays"},
 		{(const void*)&glAttachShader, "glAttachShader"},
 		{(const void*)&glBindBuffer, "glBindBuffer"},
 		{(const void*)&glBindFramebuffer, "glBindFramebuffer"},
@@ -107,7 +107,7 @@ const char* GlFuncToString(const void* const func)
 	return it != functions.end() ? it->second : "(unknown gl function)";
 }
 
-NativeOpenGLContext CreateOpenGLContext(NativeWindow& window)
+NativeOpenGLContext createOpenGLContext(NativeWindow& window)
 try
 {
 	NativeOpenGLContext ret;
@@ -135,22 +135,22 @@ try
 	// Query for a pixel format that fits the attributes we want.
 	const int pixelFormat = ChoosePixelFormat(deviceContext, &descriptor);
 	if (0 == pixelFormat)
-		throw "ChoosePixelFormat: " + GetLastErrorAsString();
+		throw "ChoosePixelFormat: " + getLastErrorAsString();
 
 	// Set the pixel format on the device context
 	if (!SetPixelFormat(deviceContext, pixelFormat, &descriptor))
-		throw "SetPixelFormat: " + GetLastErrorAsString();
+		throw "SetPixelFormat: " + getLastErrorAsString();
 
 	// Create the rendering context
 	// Typically drivers will give us the latest GL compatibility profile that they support
 	// If we want a specific GL version or a core context, we could instead check for and use wglCreateContextAttribsARB extension
 	const HGLRC renderContext = wglCreateContext(deviceContext);
 	if (!renderContext)
-		throw "wglCreateContext: " + GetLastErrorAsString();
+		throw "wglCreateContext: " + getLastErrorAsString();
 
 	// Make the context current for this thread
 	if (!wglMakeCurrent(deviceContext, renderContext))
-		throw "wglMakeCurrent: " + GetLastErrorAsString();
+		throw "wglMakeCurrent: " + getLastErrorAsString();
 #else
 	// Get and initialize the EGL display from the native X11 display
 	const EGLDisplay eglDisplay = eglGetDisplay((EGLNativeDisplayType)window.xDisplay());
@@ -191,10 +191,10 @@ try
 #endif
 
 	// Check that our initial OpenGL state has no error
-	GlCheckError("InitialGLState");
+	glCheckError("InitialGLState");
 
 	// Log the GL version
-	const char* const version = (const char*)GlCall(glGetString, GL_VERSION);
+	const char* const version = (const char*)glCall(glGetString, GL_VERSION);
 	cout << "GL Version is: " << (version ? version : "unknown") << endl;
 	return ret;
 }
@@ -203,7 +203,7 @@ catch (...)
 	throw "Unable to create GL context: " + currentExceptionMessage();
 }
 
-void ApplyWindowViewport(NativeWindow& window, NativeOpenGLContext& context)
+void applyWindowViewport(NativeWindow& window, NativeOpenGLContext& context)
 {
 #ifdef _WIN32
 	// Todo: update this as the window resizes
@@ -211,7 +211,7 @@ void ApplyWindowViewport(NativeWindow& window, NativeOpenGLContext& context)
 #endif
 }
 
-void SwapBuffers(NativeWindow& window, NativeOpenGLContext& context)
+void swapBuffers(NativeWindow& window, NativeOpenGLContext& context)
 {
 #ifdef _WIN32
 	// Get the device context
@@ -221,6 +221,6 @@ void SwapBuffers(NativeWindow& window, NativeOpenGLContext& context)
 
 	// Tell windows to swap buffers
 	if (!::SwapBuffers(deviceContext))
-		throw "SwapBuffers: " + GetLastErrorAsString();
+		throw "SwapBuffers: " + getLastErrorAsString();
 #endif
 }

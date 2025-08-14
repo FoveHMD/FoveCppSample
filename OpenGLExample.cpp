@@ -74,35 +74,35 @@ const char* const texCopyFragSrc = "#version 140\n"                       // Dec
 								   "	finalColor = texture(tex, uv);\n" // Texture sample is the final color, no transformations
 								   "}";
 
-GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, const char* const fragSrc)
+GlResource<GlResourceType::Program> createShaderProgram(const char* vertSrc, const char* const fragSrc)
 {
 	// Helper function to compile and verify a shader
 	const auto Compile = [](const char* source, const GLenum type) {
 		// Create the shader object
 		GlResource<GlResourceType::Shader> shader;
-		shader.Create(type);
+		shader.create(type);
 
 		// Attach the shader source
-		GlCall(glShaderSource, shader, 1, &source, nullptr);
+		glCall(glShaderSource, shader, 1, &source, nullptr);
 
 		// Compile the shader
-		GlCall(glCompileShader, shader);
+		glCall(glCompileShader, shader);
 
 		// Check compilation status
 		GLint isCompiled = GL_FALSE;
-		GlCall(glGetShaderiv, shader, GL_COMPILE_STATUS, &isCompiled);
+		glCall(glGetShaderiv, shader, GL_COMPILE_STATUS, &isCompiled);
 		if (isCompiled == GL_FALSE)
 		{
 			// Get the length of the error log
 			GLint length = 0;
-			GlCall(glGetShaderiv, shader, GL_INFO_LOG_LENGTH, &length);
+			glCall(glGetShaderiv, shader, GL_INFO_LOG_LENGTH, &length);
 
 			// Read the error log
 			string log;
 			if (length > 0)
 			{
 				log.resize(length);
-				GlCall(glGetShaderInfoLog, shader, length, &length, &log[0]);
+				glCall(glGetShaderInfoLog, shader, length, &length, &log[0]);
 
 				log.resize(length);
 			}
@@ -120,26 +120,26 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 
 	// Link the vertex and fragment shaders into a program
 	GlResource<GlResourceType::Program> program;
-	program.Create();
-	GlCall(glAttachShader, program, vertShader);
-	GlCall(glAttachShader, program, fragShader);
-	GlCall(glLinkProgram, program);
+	program.create();
+	glCall(glAttachShader, program, vertShader);
+	glCall(glAttachShader, program, fragShader);
+	glCall(glLinkProgram, program);
 
 	// Check if the program linked correctly
 	GLint isLinked = GL_FALSE;
-	GlCall(glGetProgramiv, program, GL_LINK_STATUS, &isLinked);
+	glCall(glGetProgramiv, program, GL_LINK_STATUS, &isLinked);
 	if (isLinked == GL_FALSE)
 	{
 		// Get the length of the error log
 		GLint length = 0;
-		GlCall(glGetProgramiv, program, GL_INFO_LOG_LENGTH, &length);
+		glCall(glGetProgramiv, program, GL_INFO_LOG_LENGTH, &length);
 
 		// Read the error log
 		string log;
 		if (length > 0)
 		{
 			log.resize(length);
-			GlCall(glGetProgramInfoLog, program, length, &length, &log[0]);
+			glCall(glGetProgramInfoLog, program, length, &length, &log[0]);
 
 			log.resize(length);
 		}
@@ -149,11 +149,11 @@ GlResource<GlResourceType::Program> CreateShaderProgram(const char* vertSrc, con
 	}
 
 	// Detach the shaders after a successful link (optional)
-	GlCall(glDetachShader, program, vertShader);
-	GlCall(glDetachShader, program, fragShader);
+	glCall(glDetachShader, program, vertShader);
+	glCall(glDetachShader, program, fragShader);
 
 	// Bind the program to the global gl state
-	program.Bind();
+	program.bind();
 
 	return program;
 }
@@ -165,7 +165,7 @@ struct RenderSurface
 	GlResource<GlResourceType::Fbo> fbo;                  // Framebuffer associated with the above two textures
 };
 
-RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
+RenderSurface generateRenderSurface(const Fove::Vec2i singleEyeResolution)
 {
 	RenderSurface ret;
 
@@ -175,24 +175,24 @@ RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
 	// If you were to draw to a smaller buffer (for performance reasons), linear would be a better choice
 	if (!ret.fboTexture)
 	{
-		ret.fboTexture.CreateAndBind(GL_TEXTURE_2D);
-		GlCall(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, singleEyeResolution.x * 2, singleEyeResolution.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		ret.fboTexture.createAndBind(GL_TEXTURE_2D);
+		glCall(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, singleEyeResolution.x * 2, singleEyeResolution.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	}
-	GlCall(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	GlCall(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glCall(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glCall(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	// Create the depth buffer
-	ret.depthBuffer.CreateAndBind(GL_RENDERBUFFER);
+	ret.depthBuffer.createAndBind(GL_RENDERBUFFER);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, singleEyeResolution.x * 2, singleEyeResolution.y);
 
 	// Bind the texture & depth buffer to the framebuffer
-	ret.fbo.CreateAndBind(GL_FRAMEBUFFER);
-	GlCall(glFramebufferTexture, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, ret.fboTexture, 0);
-	GlCall(glFramebufferRenderbuffer, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ret.depthBuffer);
+	ret.fbo.createAndBind(GL_FRAMEBUFFER);
+	glCall(glFramebufferTexture, GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, ret.fboTexture, 0);
+	glCall(glFramebufferRenderbuffer, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ret.depthBuffer);
 
 	// Check that the framebuffer we created is complete
 	// If this fails, it means we've not set up the frame buffers correctly and can't render to it
-	if (GL_FRAMEBUFFER_COMPLETE != GlCall(glCheckFramebufferStatus, GL_FRAMEBUFFER))
+	if (GL_FRAMEBUFFER_COMPLETE != glCall(glCheckFramebufferStatus, GL_FRAMEBUFFER))
 		throw "Framebuffer is incomplete";
 
 	return ret;
@@ -200,7 +200,7 @@ RenderSurface GenerateRenderSurface(const Fove::Vec2i singleEyeResolution)
 
 // Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
-void Main(NativeLaunchInfo nativeLaunchInfo)
+void programMain(NativeLaunchInfo nativeLaunchInfo)
 try
 {
 	// Connect to headset, specifying the capabilities we will use
@@ -215,16 +215,16 @@ try
 	Fove::Vec2i renderSurfaceSize = layerOrError ? layerOrError->idealResolutionPerEye : Fove::Vec2i{1024, 1024};
 
 	// Create a window and setup an OpenGL associated with it
-	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE OpenGL Example");
-	NativeOpenGLContext nativeOpenGLContext = CreateOpenGLContext(nativeWindow);
+	NativeWindow nativeWindow = createNativeWindow(nativeLaunchInfo, "FOVE OpenGL Example");
+	NativeOpenGLContext nativeOpenGLContext = createOpenGLContext(nativeWindow);
 
 	// Set up a framebuffer which we will render to
 	// If we were unable to create a layer now (eg. compositor not running), use a default size while we wait for the compositor
-	RenderSurface renderSurface = GenerateRenderSurface(renderSurfaceSize);
+	RenderSurface renderSurface = generateRenderSurface(renderSurfaceSize);
 
 	// Create the shaders
-	const GlResource<GlResourceType::Program> mainShader = CreateShaderProgram(demoSceneVertSrc, demoSceneFragSrc);
-	const GlResource<GlResourceType::Program> texCopyShader = CreateShaderProgram(texCopyVertSrc, texCopyFragSrc);
+	const GlResource<GlResourceType::Program> mainShader = createShaderProgram(demoSceneVertSrc, demoSceneFragSrc);
+	const GlResource<GlResourceType::Program> texCopyShader = createShaderProgram(texCopyVertSrc, texCopyFragSrc);
 
 	// Helper function for getting uniform/attrib locations
 	// The gl functions glGetUniformLocation/glGetAttribLocation return a signed integer
@@ -239,18 +239,18 @@ try
 
 	// Get data indexes for the shader inputs
 	// We will use these to bind data to the shader
-	const GLint mvpLoc = Check(GlCall(glGetUniformLocation, mainShader, "mvp"), "mvp");
-	const GLint selectionLoc = Check(GlCall(glGetUniformLocation, mainShader, "selection"), "selection");
-	const GLuint posLoc = (GLuint)Check(GlCall(glGetAttribLocation, mainShader, "pos"), "pos");
-	const GLuint colorLoc = (GLuint)Check(GlCall(glGetAttribLocation, mainShader, "color"), "color");
-	const GLuint texCopyPosLoc = (GLuint)Check(GlCall(glGetAttribLocation, texCopyShader, "pos"), "pos");
+	const GLint mvpLoc = Check(glCall(glGetUniformLocation, mainShader, "mvp"), "mvp");
+	const GLint selectionLoc = Check(glCall(glGetUniformLocation, mainShader, "selection"), "selection");
+	const GLuint posLoc = (GLuint)Check(glCall(glGetAttribLocation, mainShader, "pos"), "pos");
+	const GLuint colorLoc = (GLuint)Check(glCall(glGetAttribLocation, mainShader, "color"), "color");
+	const GLuint texCopyPosLoc = (GLuint)Check(glCall(glGetAttribLocation, texCopyShader, "pos"), "pos");
 
 	// Setup the vertex buffer, uploading our model data to OpenGL (and the GPU)
 	const GlResource<GlResourceType::Buffer> vbo = [] {
 		GlResource<GlResourceType::Buffer> vbo;
-		vbo.CreateAndBind(GL_ARRAY_BUFFER);
+		vbo.createAndBind(GL_ARRAY_BUFFER);
 
-		GlCall(glBufferData, GL_ARRAY_BUFFER, (GLsizeiptr)sizeof(levelModelVerts), levelModelVerts, GL_STATIC_DRAW);
+		glCall(glBufferData, GL_ARRAY_BUFFER, (GLsizeiptr)sizeof(levelModelVerts), levelModelVerts, GL_STATIC_DRAW);
 
 		return vbo;
 	}();
@@ -259,19 +259,19 @@ try
 	// This will associate the above buffer data with semantic meaning to the shader
 	const GlResource<GlResourceType::Vao> vao = [&] {
 		GlResource<GlResourceType::Vao> vao;
-		vao.CreateAndBind();
+		vao.createAndBind();
 
 		// Attach the vertex buffer we created to the VAO
-		vbo.Bind(GL_ARRAY_BUFFER);
+		vbo.bind(GL_ARRAY_BUFFER);
 
 		// Enable usage of the position/color attributes
-		GlCall(glEnableVertexAttribArray, posLoc);
-		GlCall(glEnableVertexAttribArray, colorLoc);
+		glCall(glEnableVertexAttribArray, posLoc);
+		glCall(glEnableVertexAttribArray, colorLoc);
 
 		// Bind the vertex array
 		constexpr GLsizei stride = static_cast<GLsizei>(sizeof(float) * floatsPerVert);
-		GlCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, stride, (void*)0);
-		GlCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 4));
+		glCall(glVertexAttribPointer, posLoc, 4, GL_FLOAT, GL_FALSE, stride, (void*)0);
+		glCall(glVertexAttribPointer, colorLoc, 3, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 4));
 
 		return vao;
 	}();
@@ -279,7 +279,7 @@ try
 	// Setup the vertex buffer, uploading our model data to OpenGL (and the GPU)
 	const GlResource<GlResourceType::Buffer> fullscreenQuadVbo = [] {
 		GlResource<GlResourceType::Buffer> vbo;
-		vbo.CreateAndBind(GL_ARRAY_BUFFER);
+		vbo.createAndBind(GL_ARRAY_BUFFER);
 		float verts[] = {
 			-1.0f,
 			-1.0f,
@@ -295,7 +295,7 @@ try
 			1.0f,
 			1.0f,
 		};
-		GlCall(glBufferData, GL_ARRAY_BUFFER, (GLsizei)sizeof(verts), verts, GL_STATIC_DRAW);
+		glCall(glBufferData, GL_ARRAY_BUFFER, (GLsizei)sizeof(verts), verts, GL_STATIC_DRAW);
 		return vbo;
 	}();
 
@@ -303,16 +303,16 @@ try
 	// This will associate the above buffer data with semantic meaning to the shader
 	const GlResource<GlResourceType::Vao> fullscreenQuadVao = [&] {
 		GlResource<GlResourceType::Vao> vao;
-		vao.CreateAndBind();
+		vao.createAndBind();
 
 		// Attach the vertex buffer we created to the VAO
-		fullscreenQuadVbo.Bind(GL_ARRAY_BUFFER);
+		fullscreenQuadVbo.bind(GL_ARRAY_BUFFER);
 
 		// Enable usage of the position/color attributes
-		GlCall(glEnableVertexAttribArray, texCopyPosLoc);
+		glCall(glEnableVertexAttribArray, texCopyPosLoc);
 
 		// Bind the vertex array
-		GlCall(glVertexAttribPointer, texCopyPosLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glCall(glVertexAttribPointer, texCopyPosLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
 		return vao;
 	}();
@@ -327,7 +327,7 @@ try
 		// Posiiton will be updated each frame in the main loop
 		Fove::CameraObject cam;
 		cam.id = 9999;
-		CheckError(headset.registerCameraObject(cam), "registerCameraObject");
+		checkError(headset.registerCameraObject(cam), "registerCameraObject");
 
 		// This can also be done manually if needed, using the gaze vectors,
 		// but we recommend using the FOVE API, as the additional scene info can increase the accuracy of ET
@@ -336,7 +336,7 @@ try
 		constexpr size_t numSpheres = numSphereFloats / 5;
 		for (size_t i = 0; i < numSpheres; ++i)
 		{
-			const float selectionid = collisionSpheres[i * 5 + 0];
+			[[maybe_unused]] const float selectionid = collisionSpheres[i * 5 + 0];
 
 			Fove::ObjectCollider collider;
 			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
@@ -348,7 +348,7 @@ try
 			object.colliders = &collider;
 			object.group = Fove::ObjectGroup::Group0; // Groups allows masking of different objects to difference cameras (not needed here)
 			object.id = static_cast<int>(collisionSpheres[i * 5 + 0]);
-			CheckError(headset.registerGazableObject(object), "registerGazableObject");
+			checkError(headset.registerGazableObject(object), "registerGazableObject");
 		}
 	}
 
@@ -358,7 +358,7 @@ try
 		// Update
 		float selection = -1; // Selected model that will be computed each time in the update phase
 		{
-			if (!FlushWindowEvents(nativeWindow))
+			if (!flushWindowEvents(nativeWindow))
 				break;
 
 			// Create layer if we have none
@@ -400,25 +400,25 @@ try
 		// Render the scene
 		{
 			// Bind our framebuffer so that we render to a texture
-			renderSurface.fbo.Bind(GL_FRAMEBUFFER);
+			renderSurface.fbo.bind(GL_FRAMEBUFFER);
 
 			// Clear the back buffer to a nice sky blue
-			GlCall(glClearColor, 0.3f, 0.3f, 0.8f, 0.3f);
-			GlCall(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glCall(glClearColor, 0.3f, 0.3f, 0.8f, 0.3f);
+			glCall(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			// Bind the various state we use for rendering the scene
-			mainShader.Bind();
-			vao.Bind();
-			GlCall(glEnable, GL_DEPTH_TEST);
+			mainShader.bind();
+			vao.bind();
+			glCall(glEnable, GL_DEPTH_TEST);
 
 			// Update selection
-			GlCall(glUniform1f, selectionLoc, (GLfloat)selection);
+			glCall(glUniform1f, selectionLoc, (GLfloat)selection);
 
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation))                                 // Apply the HMD orientation
-											 * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
-											 * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelview = quatToMatrix(conjugate(pose.orientation))                                 // Apply the HMD orientation
+											 * translationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
+											 * translationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
@@ -434,12 +434,12 @@ try
 					glViewport(isLeft ? 0 : renderSurfaceSize.x, 0, renderSurfaceSize.x, renderSurfaceSize.y);
 
 					// Update clip matrix
-					Fove::Matrix44 mvp = Transpose(isLeft ? projectionsOrError->l : projectionsOrError->r) * (TranslationMatrix(isLeft ? halfIOD : -halfIOD, 0, 0) * modelview);
-					GlCall(glUniformMatrix4fv, mvpLoc, 1, true, (const float*)mvp.mat);
+					Fove::Matrix44 mvp = transpose(isLeft ? projectionsOrError->l : projectionsOrError->r) * (translationMatrix(isLeft ? halfIOD : -halfIOD, 0, 0) * modelview);
+					glCall(glUniformMatrix4fv, mvpLoc, 1, true, (const float*)mvp.mat);
 
 					// Issue draw command
 					static constexpr size_t numVerts = sizeof(levelModelVerts) / (sizeof(float) * floatsPerVert);
-					GlCall(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)numVerts);
+					glCall(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)numVerts);
 				};
 
 				// Render the scene twice, once for the left, once for the right
@@ -476,20 +476,20 @@ try
 		{
 			// Bind the default framebuffer (index 0, that of the window)
 			// No glClear is needed since we will fill the whole view
-			GlCall(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+			glCall(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 
 			// Bind the various state we need to
-			ApplyWindowViewport(nativeWindow, nativeOpenGLContext);
-			GlCall(glDisable, GL_DEPTH_TEST);
-			texCopyShader.Bind();
-			fullscreenQuadVao.Bind();
-			renderSurface.fboTexture.Bind(GL_TEXTURE_2D);
+			applyWindowViewport(nativeWindow, nativeOpenGLContext);
+			glCall(glDisable, GL_DEPTH_TEST);
+			texCopyShader.bind();
+			fullscreenQuadVao.bind();
+			renderSurface.fboTexture.bind(GL_TEXTURE_2D);
 
 			// Draw 2 triangles forming a full screen quad
-			GlCall(glDrawArrays, GL_TRIANGLES, 0, 6);
+			glCall(glDrawArrays, GL_TRIANGLES, 0, 6);
 
 			// Swap buffers to display our new frame to the main window
-			SwapBuffers(nativeWindow, nativeOpenGLContext);
+			swapBuffers(nativeWindow, nativeOpenGLContext);
 		}
 
 		// Update camera position used by FOVE gaze detection
@@ -498,11 +498,11 @@ try
 		camPose.position.y += playerHeight;
 		camPose.velocity = pose.velocity;
 		camPose.rotation = pose.orientation;
-		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
+		checkError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
 }
 catch (...)
 {
 	// Display any error as a popup box then exit the program
-	ShowErrorBox("Error: " + currentExceptionMessage());
+	showErrorBox("Error: " + currentExceptionMessage());
 }

@@ -4,18 +4,18 @@
 #include <winerror.h> // For HRESULT
 
 // Returns a string representing the result, with additional details if possible
-std::string HResultToString(HRESULT result) noexcept;
+std::string hResultToString(HRESULT result) noexcept;
 
 // Helpers for binding a single object as an array-of-one to a DX function that requires an array
 // This is only suitable for input arrays, not output parameters
 template <typename Type>
 struct InputArrayBinding;
 template <typename Type>
-InputArrayBinding<Type> BindInputArray(const Type object) { return InputArrayBinding<Type>{object}; }
+InputArrayBinding<Type> bindInputArray(const Type object) { return InputArrayBinding<Type>{object}; }
 template <typename Type>
-InputArrayBinding<Type*> BindInputArray(const CComPtr<Type>& object) { return BindInputArray<Type*>(object); }
+InputArrayBinding<Type*> bindInputArray(const CComPtr<Type>& object) { return bindInputArray<Type*>(object); }
 
-// Implementation BindInputArray
+// Implementation of bindInputArray
 template <typename Type>
 struct InputArrayBinding
 {

@@ -32,7 +32,7 @@ void closeXDisplay(XDisplay* display)
 	if (!display)
 		return;
 	const int ret = XCloseDisplay(display);
-	cout << "Closed X display: " << display << '\n';
+	cout << "Closed X display: " << display << " with return code: " << ret << '\n';
 }
 
 unique_ptr<XDisplay, void (*)(XDisplay*)> connectX()
@@ -72,7 +72,7 @@ XKeyCode mapKey(const unsigned int keycode)
 } // namespace
 
 // Displays a modal dialgo box with the given error message
-void ShowErrorBox(const std::string& err)
+void showErrorBox(const std::string& err)
 {
 	cerr << "Error: " << err << '\n'; // FIXME
 }
@@ -128,7 +128,7 @@ private:
 			XEvent event{};
 			XNextEvent(nativeHandle(), &event);
 
-			if (event.type == ClientMessage && event.xclient.data.l[0] == m_deleteMessage)
+			if (event.type == ClientMessage && event.xclient.data.l[0] == static_cast<long>(m_deleteMessage))
 			{
 				cout << "Window close requested through wm\n";
 				m_keepAlive = false;
@@ -154,8 +154,8 @@ private:
 	unique_ptr<XDisplay, void (*)(XDisplay*)> m_display;
 	XWindow m_window;
 
-	friend NativeWindow CreateNativeWindow(NativeLaunchInfo&, const string&);
-	friend bool FlushWindowEvents(NativeWindow&);
+	friend NativeWindow createNativeWindow(NativeLaunchInfo&, const string&);
+	friend bool flushWindowEvents(NativeWindow&);
 	Atom m_deleteMessage;
 
 	mutex m_mutex{}; // guards m_display
@@ -196,7 +196,7 @@ XWindowSize NativeWindow::windowSize()
 	return size;
 }
 
-NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string& windowTitle)
+NativeWindow createNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string& windowTitle)
 {
 	unique_ptr<XlibWindowImpl> display = make_unique<XlibWindowImpl>();
 
@@ -234,10 +234,10 @@ NativeWindow CreateNativeWindow(NativeLaunchInfo& nativeLaunchInfo, const string
 	NativeWindow nativeWindow{};
 	nativeWindow.m_impl = std::move(display);
 
-	return std::move(nativeWindow);
+	return nativeWindow;
 }
 
-bool FlushWindowEvents(NativeWindow& window)
+bool flushWindowEvents(NativeWindow& window)
 {
 	XFlush(window.xDisplay());
 	return window.m_impl->m_keepAlive;
@@ -247,6 +247,6 @@ bool FlushWindowEvents(NativeWindow& window)
 int main()
 {
 	NativeLaunchInfo info;
-	Main(info);
+	programMain(info);
 	return 0;
 }

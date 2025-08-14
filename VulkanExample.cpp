@@ -537,16 +537,18 @@ bool checkDebugUtilsSupport()
 template <typename T>
 auto checkAndGetResult(vk::ResultValue<T> res)
 {
+	static_assert(std::is_move_constructible_v<T>);
 	if (res.result != vk::Result::eSuccess)
 	{
-		throw "Failed to create graphics pipeline";
+		throw "vulkan call failed"; // Should do better in production code
 	}
 	return std::move(res.value);
 }
 template <typename Type, typename Deleter>
 auto checkAndGetResult(vk::UniqueHandle<Type, Deleter> res)
 {
-	return std::move(res);
+	static_assert(std::is_move_constructible_v<vk::UniqueHandle<Type, Deleter>>);
+	return res;
 }
 
 struct BufferAndMemory
@@ -770,21 +772,21 @@ void copyBuffer(
 	const vector<vk::UniqueCommandBuffer> commandBuffers = device.allocateCommandBuffersUnique(allocInfo);
 	const vk::CommandBuffer commandBuffer = commandBuffers[0].get();
 
+	const vk::BufferCopy copyRegion = [commandBuffer, srcBuffer, dstBuffer, size] {
+		vk::BufferCopy copyRegion;
+		copyRegion.size = size;
+		return copyRegion;
+	}();
+
 	const vk::CommandBufferBeginInfo beginInfo = [] {
 		vk::CommandBufferBeginInfo beginInfo;
 		beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 		return beginInfo;
 	}();
 
+	// Record command buffer
 	commandBuffer.begin(beginInfo);
-
-	const vk::BufferCopy copyRegion = [commandBuffer, srcBuffer, dstBuffer, size] {
-		vk::BufferCopy copyRegion;
-		copyRegion.size = size;
-		commandBuffer.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
-		return copyRegion;
-	}();
-
+	commandBuffer.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
 	commandBuffer.end();
 
 	const vk::SubmitInfo submitInfo = [&commandBuffer] {
@@ -884,7 +886,6 @@ vk::UniqueDescriptorSetLayout createDescriptorSetLayout(const vk::Device device,
 
 	// create layout for uniorm buffer objects and samplers.
 	// Assume that all ubos have earlier binding number than samplers
-	uint32_t binding = 0;
 	for (auto i = 0U; i < uboDescriptorCount; ++i)
 	{
 		vk::DescriptorSetLayoutBinding uboLayoutBinding{};
@@ -1184,7 +1185,7 @@ BufferAndMemory createIndexBuffer(
 
 	device.destroyBuffer(staging.buffer.release());
 	device.freeMemory(staging.deviceMemory.release());
-	return std::move(bufAndMem);
+	return bufAndMem;
 }
 
 struct SwapchainSupportDetails
@@ -1409,10 +1410,6 @@ void VulkanResources::createRenderTextureImages(const uint32_t nImages, const ui
 
 void VulkanResources::createRenderTextureDeviceMemories()
 {
-	const int numLayers{1};
-	const vk::Format format{m_renderTextureImageFormat};
-	const vk::ImageUsageFlags usage{vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled};
-
 	const auto nImages = m_renderTextureImages.size();
 	const auto devMemProps = m_physicalDevice.getMemoryProperties();
 	const auto memProps = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -1490,7 +1487,6 @@ void VulkanResources::createRenderTextureFramebuffers()
 
 void VulkanResources::createRenderTextureVertexBuffer(const Span<const RenderTextureVertex> verts)
 {
-	const vk::Device device = m_device.get();
 	auto bufAndMem = createVertexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, verts);
 	m_renderTextureVertexBuffer = std::move(bufAndMem.buffer);
 	m_renderTextureVertexBufferMemory = std::move(bufAndMem.deviceMemory);
@@ -1498,7 +1494,6 @@ void VulkanResources::createRenderTextureVertexBuffer(const Span<const RenderTex
 
 void VulkanResources::createRenderTextureIndexBuffer(const Span<const RenderTextureVertex::IndexType> inds)
 {
-	const vk::Device device = m_device.get();
 	auto bufAndMem = createIndexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, inds);
 	m_renderTextureIndexBuffer = std::move(bufAndMem.buffer);
 	m_renderTextureIndexBufferMemory = std::move(bufAndMem.deviceMemory);
@@ -1671,7 +1666,6 @@ void VulkanResources::createSwapchainFramebuffers()
 
 void VulkanResources::createSwapchainVertexBuffer(const Span<const SwapchainVertex> verts)
 {
-	const vk::Device device = m_device.get();
 	auto bufAndMem = createVertexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, verts);
 	m_swapchainVertexBuffer = std::move(bufAndMem.buffer);
 	m_swapchainVertexBufferMemory = std::move(bufAndMem.deviceMemory);
@@ -1679,7 +1673,6 @@ void VulkanResources::createSwapchainVertexBuffer(const Span<const SwapchainVert
 
 void VulkanResources::createSwapchainIndexBuffer(const Span<const SwapchainVertex::IndexType> inds)
 {
-	const vk::Device device = m_device.get();
 	auto bufAndMem = createIndexBuffer(m_physicalDevice, m_device.get(), m_commandPool.get(), m_queueFamily.index, m_queue, inds);
 	m_swapchainIndexBuffer = std::move(bufAndMem.buffer);
 	m_swapchainIndexBufferMemory = std::move(bufAndMem.deviceMemory);
@@ -2220,7 +2213,7 @@ try
 	Fove::Headset headset = Fove::Headset::create(Fove::ClientCapabilities::OrientationTracking | Fove::ClientCapabilities::PositionTracking | Fove::ClientCapabilities::EyeTracking | Fove::ClientCapabilities::GazedObjectDetection).getValue();
 
 	// Create a window and setup a Vulkan instance associated with it
-	NativeWindow nativeWindow = CreateNativeWindow(info, appName);
+	NativeWindow nativeWindow = createNativeWindow(info, appName);
 	VulkanExample app{};
 	app.initVulkan(nativeWindow);
 
@@ -2257,7 +2250,7 @@ try
 		// Posiiton will be updated each frame in the main loop
 		Fove::CameraObject cam;
 		cam.id = cameraId;
-		CheckError(headset.registerCameraObject(cam), "registerCameraObject");
+		checkError(headset.registerCameraObject(cam), "registerCameraObject");
 
 		// This can also be done manually if needed, using the gaze vectors,
 		// but we recommend using the FOVE API, as the additional scene info can increase the accuracy of ET
@@ -2266,8 +2259,6 @@ try
 		constexpr size_t numSpheres = numSphereFloats / 5;
 		for (size_t i = 0; i < numSpheres; ++i)
 		{
-			const float selectionid = collisionSpheres[i * 5 + 0];
-
 			Fove::ObjectCollider collider;
 			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
 			collider.shapeType = Fove::ColliderType::Sphere;
@@ -2278,7 +2269,7 @@ try
 			object.colliders = &collider;
 			object.group = Fove::ObjectGroup::Group0; // Groups allows masking of different objects to difference cameras (not needed here)
 			object.id = static_cast<int>(collisionSpheres[i * 5 + 0]);
-			CheckError(headset.registerGazableObject(object), "registerGazableObject");
+			checkError(headset.registerGazableObject(object), "registerGazableObject");
 		}
 	}
 
@@ -2287,7 +2278,7 @@ try
 		// Update ubo and selected model
 		RenderTextureUboLR ubo{};
 		{
-			if (!FlushWindowEvents(nativeWindow))
+			if (!flushWindowEvents(nativeWindow))
 				break;
 
 			// Create layer if we have none
@@ -2332,9 +2323,9 @@ try
 		{
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelView = QuatToMatrix(Conjugate(pose.orientation))                                 // Apply the HMD orientation
-											 * TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
-											 * TranslationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelView = quatToMatrix(conjugate(pose.orientation))                                 // Apply the HMD orientation
+											 * translationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) // Apply the position tracking offset
+											 * translationMatrix(0, -playerHeight, 0);                                 // Move ground downwards to compensate for player height
 			// Adjust clipspace coordinates
 			const Fove::Matrix44 glToVk = {{
 				{1.0F, 0.0F, 0.0F, 0.0F},
@@ -2351,8 +2342,8 @@ try
 			Fove::Result<Fove::Stereo<Fove::Matrix44>> projectionsOrError = headset.getProjectionMatricesLH(0.01f, 1000.0f);
 			if (projectionsOrError.isValid())
 			{
-				ubo.uboL.mvp = glToVk * Transpose(projectionsOrError->l) * TranslationMatrix(+halfIOD, 0, 0) * modelView;
-				ubo.uboR.mvp = glToVk * Transpose(projectionsOrError->r) * TranslationMatrix(-halfIOD, 0, 0) * modelView;
+				ubo.uboL.mvp = glToVk * transpose(projectionsOrError->l) * translationMatrix(+halfIOD, 0, 0) * modelView;
+				ubo.uboR.mvp = glToVk * transpose(projectionsOrError->r) * translationMatrix(-halfIOD, 0, 0) * modelView;
 				// Render the scene twice, once for the left, once for the right
 			}
 		}
@@ -2390,20 +2381,20 @@ try
 		camPose.position.y += playerHeight;
 		camPose.velocity = pose.velocity;
 		camPose.rotation = pose.orientation;
-		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
+		checkError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
 
 	return 0;
 }
 catch (...)
 {
-	ShowErrorBox("Error: " + currentExceptionMessage());
+	showErrorBox("Error: " + currentExceptionMessage());
 	return -1;
 }
 
 } // namespace
 
-void Main(NativeLaunchInfo info)
+void programMain(NativeLaunchInfo info)
 {
 	const int ret = run(std::move(info));
 	if (ret != 0)

@@ -45,7 +45,7 @@ bool checkError(const Fove::ErrorCode errorCode)
 
 	default:
 		// Less common errors are simply logged with their numeric value
-		cerr << "Error #" << EnumToUnderlyingValue(errorCode) << endl;
+		cerr << "Error #" << enumToUnderlyingValue(errorCode) << endl;
 		break;
 	}
 

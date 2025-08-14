@@ -15,17 +15,17 @@ struct NativeWindow;
 // This is the main function
 // Each platform defines the proper main (eg, WinMain() or main()), then calls into this function
 // This function is implented by each example program that uses native gui (eg, opening windows)
-void Main(NativeLaunchInfo);
+void programMain(NativeLaunchInfo);
 
 // Creates a window
-NativeWindow CreateNativeWindow(NativeLaunchInfo&, const std::string& windowTitle);
+NativeWindow createNativeWindow(NativeLaunchInfo&, const std::string& windowTitle);
 
 // Flushes the event queue for the window if needed
 // Returns false if the window has received a close signal, otherwise true
-bool FlushWindowEvents(NativeWindow&);
+bool flushWindowEvents(NativeWindow&);
 
 // Displays a modal dialgo box with the given error message
-void ShowErrorBox(const std::string& msg);
+void showErrorBox(const std::string& msg);
 
 // Include the platform-specific version of this header based on the current platform
 #ifdef _WIN32

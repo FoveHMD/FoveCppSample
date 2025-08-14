@@ -39,7 +39,7 @@ string currentExceptionMessage()
 	return "unknown exception";
 }
 
-string ToUtf8(const wstring& utf16)
+string toUtf8(const wstring& utf16)
 {
 	// This is a simple conversion just to keep this example code simple and dependency free
 	// We recommend using a more advanced, performant, and well tested library for real applications
@@ -84,7 +84,7 @@ string ToUtf8(const wstring& utf16)
 			utf8 += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3f));
 			utf8 += static_cast<char>(0x80 | (codePoint & 0x3f));
 		}
-		else if (ch <= 0x10ffff) // 4-byte utf8 char
+		else
 		{
 			utf8 += static_cast<char>(0xf0 | ((codePoint >> 18) & 0x07));
 			utf8 += static_cast<char>(0x80 | ((codePoint >> 12) & 0x3f));
@@ -95,7 +95,7 @@ string ToUtf8(const wstring& utf16)
 	return utf8;
 }
 
-wstring ToUtf16(const string& str)
+wstring toUtf16(const string& str)
 {
 	// This is a simple conversion just to keep this example code simple and dependency free
 	// We recommend using a more advanced, performant, and well tested library for real applications
@@ -160,7 +160,7 @@ wstring ToUtf16(const string& str)
 	return utf16;
 }
 
-Fove::Quaternion AxisAngleToQuat(const float vx, const float vy, const float vz, const float angle)
+Fove::Quaternion axisAngleToQuat(const float vx, const float vy, const float vz, const float angle)
 {
 	const float s = sin(angle / 2);
 	const float c = cos(angle / 2);
@@ -172,7 +172,7 @@ Fove::Quaternion AxisAngleToQuat(const float vx, const float vy, const float vz,
 	return ret;
 }
 
-Fove::Quaternion Conjugate(const Fove::Quaternion q)
+Fove::Quaternion conjugate(const Fove::Quaternion q)
 {
 	Fove::Quaternion ret;
 	ret.x = -q.x;
@@ -182,7 +182,7 @@ Fove::Quaternion Conjugate(const Fove::Quaternion q)
 	return ret;
 }
 
-Fove::Matrix44 QuatToMatrix(const Fove::Quaternion q)
+Fove::Matrix44 quatToMatrix(const Fove::Quaternion q)
 {
 	Fove::Matrix44 ret;
 	ret.mat[0][0] = 1 - 2 * q.y * q.y - 2 * q.z * q.z;
@@ -204,7 +204,7 @@ Fove::Matrix44 QuatToMatrix(const Fove::Quaternion q)
 	return ret;
 }
 
-Fove::Matrix44 Transpose(const Fove::Matrix44& m)
+Fove::Matrix44 transpose(const Fove::Matrix44& m)
 {
 	Fove::Matrix44 ret;
 	ret.mat[0][0] = m.mat[0][0];
@@ -226,7 +226,7 @@ Fove::Matrix44 Transpose(const Fove::Matrix44& m)
 	return ret;
 }
 
-Fove::Vec3 TransformPoint(const Fove::Matrix44& transform, Fove::Vec3 point, float w)
+Fove::Vec3 transformPoint(const Fove::Matrix44& transform, Fove::Vec3 point, float w)
 {
 	// w is passed separately since we don't have a Vec4 type
 	return {
@@ -236,7 +236,7 @@ Fove::Vec3 TransformPoint(const Fove::Matrix44& transform, Fove::Vec3 point, flo
 	};
 }
 
-Fove::Matrix44 TranslationMatrix(const float x, const float y, const float z)
+Fove::Matrix44 translationMatrix(const float x, const float y, const float z)
 {
 	Fove::Matrix44 ret;
 	ret.mat[0][0] = 1;
@@ -274,7 +274,7 @@ Fove::Matrix44 operator*(const Fove::Matrix44& m1, const Fove::Matrix44& m2)
 	return ret;
 }
 
-string GetErrorString(const ErrorType error) noexcept
+string getErrorString(const ErrorType error) noexcept
 try
 {
 	string ret = to_string(error);
@@ -289,7 +289,7 @@ try
 		// Add message to return buffer
 		const wstring wstr(buffer.get(), size);
 		ret += ' ';
-		ret += ToUtf8(wstr);
+		ret += toUtf8(wstr);
 
 		// Windows seems to add newlines, remove them
 		ret.erase(remove_if(ret.begin(), ret.end(), [](const char c) { return c == '\r' || c == '\n'; }), ret.end());
@@ -304,10 +304,10 @@ catch (...)
 	return "ERROR_FAILURE";
 }
 
-string GetLastErrorAsString() noexcept
+string getLastErrorAsString() noexcept
 {
 #ifdef _WIN32
-	return GetErrorString(GetLastError());
+	return getErrorString(GetLastError());
 #else
 	return 0; // Not implemented for other platforms yet
 #endif

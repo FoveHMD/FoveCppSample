@@ -48,7 +48,7 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 	CComPtr<IDXGIFactory> factory;
 	HRESULT err = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
 	if (FAILED(err) || !factory)
-		throw "Unable to create IDXGIFactory1: " + HResultToString(err);
+		throw "Unable to create IDXGIFactory1: " + hResultToString(err);
 
 	// Loop through existing adapters
 	for (UINT i = 0;; ++i)
@@ -59,13 +59,13 @@ CComPtr<IDXGIAdapter> FindAdapter(const Fove::AdapterId& adapterId)
 		if (err == DXGI_ERROR_NOT_FOUND)
 			throw "Unable to find adapter: " + to_string(adapterId.highPart) + " " + to_string(adapterId.lowPart);
 		else if (FAILED(err) || !adapter)
-			throw "Failed to enumerate adapters: " + HResultToString(err);
+			throw "Failed to enumerate adapters: " + hResultToString(err);
 
 		// Get info about this adapter
 		DXGI_ADAPTER_DESC adapterDesc{};
 		err = adapter->GetDesc(&adapterDesc);
 		if (FAILED(err))
-			throw "Unable to get adapter description: " + HResultToString(err);
+			throw "Unable to get adapter description: " + hResultToString(err);
 
 		// If this is the right adapter, we are done
 		if (adapterDesc.AdapterLuid.HighPart == adapterId.highPart && adapterDesc.AdapterLuid.LowPart == adapterId.lowPart)
@@ -89,7 +89,7 @@ CComPtr<ID3D11Device> CreateDevice(CComPtr<ID3D11DeviceContext>& deviceContext, 
 		nullptr,
 		&deviceContext);
 	if (FAILED(err) || !device || !deviceContext)
-		throw "Unable to create device: " + HResultToString(err);
+		throw "Unable to create device: " + hResultToString(err);
 
 	return device;
 }
@@ -103,18 +103,18 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11D
 		CComPtr<IDXGIDevice> dxgiDevice;
 		HRESULT err = device.QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
 		if (FAILED(err) || !dxgiDevice)
-			throw "Unable to get IDXGIDevice from ID3D11Device: " + HResultToString(err);
+			throw "Unable to get IDXGIDevice from ID3D11Device: " + hResultToString(err);
 
 		// Get IDXGIAdapter from IDXGIDevice
 		CComPtr<IDXGIAdapter> adapter;
 		err = dxgiDevice->GetAdapter(&adapter);
 		if (FAILED(err) || !adapter)
-			throw "Unable to get IDXGIAdapter from IDXGIDevice: " + HResultToString(err);
+			throw "Unable to get IDXGIAdapter from IDXGIDevice: " + hResultToString(err);
 
 		// Get IDXGIFactory2 from IDXGIAdapter
 		err = adapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&factory));
 		if (FAILED(err) || !factory)
-			throw "Unable to get IDXGIFactory2: " + HResultToString(err);
+			throw "Unable to get IDXGIFactory2: " + hResultToString(err);
 	}
 
 	// Create swap chain description
@@ -132,13 +132,13 @@ CComPtr<IDXGISwapChain> CreateSwapChain(const NativeWindow nativeWindow, ID3D11D
 	CComPtr<IDXGISwapChain1> swapChain1;
 	HRESULT err = factory->CreateSwapChainForHwnd(&device, nativeWindow.window, &swapChainDesc, nullptr, nullptr, &swapChain1);
 	if (FAILED(err) || !swapChain1)
-		throw "Unable to create swap chain: " + HResultToString(err);
+		throw "Unable to create swap chain: " + hResultToString(err);
 
 	// Get IDXGISwapChain from IDXGISwapChain1
 	CComPtr<IDXGISwapChain> swapChain;
 	err = swapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChain));
 	if (FAILED(err) || !swapChain)
-		throw "Unable to get IDXGISwapChain from IDXGISwapChain1: " + HResultToString(err);
+		throw "Unable to get IDXGISwapChain from IDXGISwapChain1: " + hResultToString(err);
 
 	return swapChain;
 }
@@ -159,7 +159,7 @@ void RenderScene(ID3D11DeviceContext& deviceContext, ID3D11Buffer& constantsBuff
 
 // Platform-independent main program entry point and loop
 // This is invoked from WinMain in WindowsUtil.cpp
-void Main(NativeLaunchInfo nativeLaunchInfo)
+void programMain(NativeLaunchInfo nativeLaunchInfo)
 try
 {
 	// Connect to headset, specifying the capabilities we will use
@@ -199,11 +199,11 @@ try
 			adapterOrNull = FindAdapter(adapterIdOrError.getValue());
 		else
 			// If for some reason we can't get the adapter, just carry on and hope the default adapter works.
-			cerr << "Unable to get adapter id: " << EnumToUnderlyingValue(adapterIdOrError.getError()) << endl;
+			cerr << "Unable to get adapter id: " << enumToUnderlyingValue(adapterIdOrError.getError()) << endl;
 	}
 
 	// Create a window and setup an DirectX device associated with it
-	NativeWindow nativeWindow = CreateNativeWindow(nativeLaunchInfo, "FOVE DirectX11 Example");
+	NativeWindow nativeWindow = createNativeWindow(nativeLaunchInfo, "FOVE DirectX11 Example");
 	CComPtr<ID3D11DeviceContext> deviceContext;
 	const CComPtr<ID3D11Device> device = CreateDevice(deviceContext, adapterOrNull);
 	const CComPtr<IDXGISwapChain> swapChain = CreateSwapChain(nativeWindow, *device, *deviceContext, renderSurfaceSize);
@@ -212,13 +212,13 @@ try
 	CComPtr<ID3D11Texture2D> backBuffer;
 	HRESULT err = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
 	if (FAILED(err) || !backBuffer)
-		throw "Unable to create render target view: " + HResultToString(err);
+		throw "Unable to create render target view: " + hResultToString(err);
 
 	// Create a render target view
 	CComPtr<ID3D11RenderTargetView> renderTargetView;
 	err = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
 	if (FAILED(err) || !renderTargetView)
-		throw "Unable to create render target view: " + HResultToString(err);
+		throw "Unable to create render target view: " + hResultToString(err);
 
 	// Create the depth buffer
 	D3D11_TEXTURE2D_DESC descDepth;
@@ -237,7 +237,7 @@ try
 	CComPtr<ID3D11Texture2D> depthBuffer;
 	err = device->CreateTexture2D(&descDepth, nullptr, &depthBuffer);
 	if (FAILED(err) || !depthBuffer)
-		throw "Unable to create depth buffer: " + HResultToString(err);
+		throw "Unable to create depth buffer: " + hResultToString(err);
 
 	// Create depth stencil state
 	D3D11_DEPTH_STENCIL_DESC dsDesc;
@@ -248,7 +248,7 @@ try
 	CComPtr<ID3D11DepthStencilState> depthStencilState;
 	err = device->CreateDepthStencilState(&dsDesc, &depthStencilState);
 	if (FAILED(err) || !depthStencilState)
-		throw "Unable to create depth stencil state: " + HResultToString(err);
+		throw "Unable to create depth stencil state: " + hResultToString(err);
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
@@ -258,10 +258,10 @@ try
 	CComPtr<ID3D11DepthStencilView> depthStencilView;
 	err = device->CreateDepthStencilView(depthBuffer, &depthStencilViewDesc, &depthStencilView);
 	if (FAILED(err) || !depthStencilView)
-		throw "Unable to create depth stencil view " + HResultToString(err);
+		throw "Unable to create depth stencil view " + hResultToString(err);
 
 	// Bind render targets to output-merger stage
-	deviceContext->OMSetRenderTargets(1, BindInputArray(renderTargetView), depthStencilView);
+	deviceContext->OMSetRenderTargets(1, bindInputArray(renderTargetView), depthStencilView);
 	deviceContext->OMSetDepthStencilState(depthStencilState, 1);
 
 	// Setup the right and left viewport
@@ -279,7 +279,7 @@ try
 	CComPtr<ID3D11VertexShader> vertexShader;
 	err = device->CreateVertexShader(g_vert, sizeof(g_vert), nullptr, &vertexShader);
 	if (FAILED(err) || !vertexShader)
-		throw "Unable to create vertex shader: " + HResultToString(err);
+		throw "Unable to create vertex shader: " + hResultToString(err);
 	deviceContext->VSSetShader(vertexShader, nullptr, 0);
 
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
@@ -289,14 +289,14 @@ try
 	CComPtr<ID3D11InputLayout> vertexLayout;
 	err = device->CreateInputLayout(layout, ARRAYSIZE(layout), g_vert, sizeof(g_vert), &vertexLayout);
 	if (FAILED(err) || !vertexLayout)
-		throw "Unable to create vertex layout: " + HResultToString(err);
+		throw "Unable to create vertex layout: " + hResultToString(err);
 	deviceContext->IASetInputLayout(vertexLayout);
 
 	// Create and set the pixel shader
 	CComPtr<ID3D11PixelShader> pixelShader;
 	err = device->CreatePixelShader(g_frag, sizeof(g_frag), nullptr, &pixelShader);
 	if (FAILED(err) || !pixelShader)
-		throw "Unable to create pixel shader: " + HResultToString(err);
+		throw "Unable to create pixel shader: " + hResultToString(err);
 	deviceContext->PSSetShader(pixelShader, nullptr, 0);
 
 	// Create vertex buffer
@@ -313,8 +313,8 @@ try
 	CComPtr<ID3D11Buffer> vertexBuffer;
 	err = device->CreateBuffer(&vertexBufferDesc, &InitData, &vertexBuffer);
 	if (FAILED(err) || !vertexBuffer)
-		throw "Unable to create vertex buffer: " + HResultToString(err);
-	deviceContext->IASetVertexBuffers(0, 1, BindInputArray(vertexBuffer), BindInputArray<UINT>(sizeof(float) * floatsPerVert), BindInputArray<UINT>(0));
+		throw "Unable to create vertex buffer: " + hResultToString(err);
+	deviceContext->IASetVertexBuffers(0, 1, bindInputArray(vertexBuffer), bindInputArray<UINT>(sizeof(float) * floatsPerVert), bindInputArray<UINT>(0));
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Setup constants buffer
@@ -327,8 +327,8 @@ try
 	CComPtr<ID3D11Buffer> constantBuffer;
 	err = device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
 	if (FAILED(err) || !constantBuffer)
-		throw "Unable to create constant buffer: " + HResultToString(err);
-	deviceContext->VSSetConstantBuffers(0, 1, BindInputArray(constantBuffer));
+		throw "Unable to create constant buffer: " + hResultToString(err);
+	deviceContext->VSSetConstantBuffers(0, 1, bindInputArray(constantBuffer));
 
 	// Register all objects with FOVE SceneAware
 	// This allows FOVE to handle all the detection of which object you're looking at
@@ -340,7 +340,7 @@ try
 		// Posiiton will be updated each frame in the main loop
 		Fove::CameraObject cam;
 		cam.id = 9999;
-		CheckError(headset.registerCameraObject(cam), "registerCameraObject");
+		checkError(headset.registerCameraObject(cam), "registerCameraObject");
 
 		// This can also be done manually if needed, using the gaze vectors,
 		// but we recommend using the FOVE API, as the additional scene info can increase the accuracy of ET
@@ -349,7 +349,7 @@ try
 		constexpr size_t numSpheres = numSphereFloats / 5;
 		for (size_t i = 0; i < numSpheres; ++i)
 		{
-			const float selectionid = collisionSpheres[i * 5 + 0];
+			[[maybe_unused]] const float selectionid = collisionSpheres[i * 5 + 0];
 
 			Fove::ObjectCollider collider;
 			collider.center = Fove::Vec3{collisionSpheres[i * 5 + 2], collisionSpheres[i * 5 + 3], collisionSpheres[i * 5 + 4]};
@@ -361,7 +361,7 @@ try
 			object.colliders = &collider;
 			object.group = Fove::ObjectGroup::Group0; // Groups allows masking of different objects to difference cameras (not needed here)
 			object.id = static_cast<int>(collisionSpheres[i * 5 + 0]);
-			CheckError(headset.registerGazableObject(object), "registerGazableObject");
+			checkError(headset.registerGazableObject(object), "registerGazableObject");
 		}
 	}
 
@@ -371,7 +371,7 @@ try
 		// Update
 		float selection = -1; // Selected model that will be computed each time in the update phase
 		{
-			if (!FlushWindowEvents(nativeWindow))
+			if (!flushWindowEvents(nativeWindow))
 				break;
 
 			// Create layer if we have none
@@ -419,9 +419,9 @@ try
 
 			// Compute the modelview matrix
 			// Everything here is reverse since we are moving the world we are going to draw, not the camera
-			const Fove::Matrix44 modelview = QuatToMatrix(Conjugate(pose.orientation)) *                               // Apply the HMD orientation
-											 TranslationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) * // Apply the position tracking offset
-											 TranslationMatrix(0, -playerHeight, 0);                                   // Move ground downwards to compensate for player height
+			const Fove::Matrix44 modelview = quatToMatrix(conjugate(pose.orientation)) *                               // Apply the HMD orientation
+											 translationMatrix(-pose.position.x, -pose.position.y, -pose.position.z) * // Apply the position tracking offset
+											 translationMatrix(0, -playerHeight, 0);                                   // Move ground downwards to compensate for player height
 
 			// Get distance between eyes to shift camera for stereo effect
 			const Fove::Result<float> iodOrError = headset.getRenderIOD();
@@ -433,11 +433,11 @@ try
 			{
 				// Render left eye
 				deviceContext->RSSetViewports(1, &leftViewport);
-				RenderScene(*deviceContext, *constantBuffer, Transpose(projectionsOrError->l), TranslationMatrix(halfIOD, 0, 0) * modelview, selection);
+				RenderScene(*deviceContext, *constantBuffer, transpose(projectionsOrError->l), translationMatrix(halfIOD, 0, 0) * modelview, selection);
 
 				// Render right eye
 				deviceContext->RSSetViewports(1, &rightViewport);
-				RenderScene(*deviceContext, *constantBuffer, Transpose(projectionsOrError->r), TranslationMatrix(-halfIOD, 0, 0) * modelview, selection);
+				RenderScene(*deviceContext, *constantBuffer, transpose(projectionsOrError->r), translationMatrix(-halfIOD, 0, 0) * modelview, selection);
 			}
 		}
 
@@ -468,7 +468,7 @@ try
 		// Present the rendered image to the screen
 		const HRESULT err = swapChain->Present(0, 0);
 		if (FAILED(err))
-			throw "Unable to present: " + HResultToString(err);
+			throw "Unable to present: " + hResultToString(err);
 
 		// Update camera position used by FOVE gaze detection
 		Fove::ObjectPose camPose;
@@ -476,11 +476,11 @@ try
 		camPose.position.y += playerHeight;
 		camPose.velocity = pose.velocity;
 		camPose.rotation = pose.orientation;
-		CheckError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
+		checkError(headset.updateCameraObject(cameraId, camPose), "updateCameraObject");
 	}
 }
 catch (...)
 {
 	// Display any error as a popup box then exit the program
-	ShowErrorBox("Error: " + currentExceptionMessage());
+	showErrorBox("Error: " + currentExceptionMessage());
 }

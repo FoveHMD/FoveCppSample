@@ -3,7 +3,7 @@ CMakeLists.txt.user*
 .vscode
 
 # Ignore build folder
-build
+build*
 
 # OSX stuff
 .DS_Store
